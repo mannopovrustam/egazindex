@@ -88,17 +88,49 @@ class Scales {
         $photo = str_replace('data:image/jpeg;base64,', '', $photo);
         $photo = str_replace(' ', '+', $photo);
         $photo = base64_decode($photo);
+
+        // Bazaga NISBIY yo'l yoziladi (eski qatorlar formati saqlanadi), lekin
+        // fayl ABSOLYUT yo'l bilan yoziladi — 'uploads/...' cwd ga bog'liq edi
+        // va php-fpm/artisan/cron da boshqa papkaga tushib "Permission denied"
+        // berardi.
         $filename = 'uploads/' . uniqid() . '.jpg';
-        $success = file_put_contents($filename, $photo);
-        if ($success) return $filename;
-        return false;
+        $target   = public_path($filename);
+        $dir      = dirname($target);
+
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            \Log::error('Scales: uploads papkasini yaratib bolmadi: ' . $dir);
+            return null;
+        }
+
+        if (!is_writable($dir)) {
+            \Log::error('Scales: uploads papkasi yozuvga yopiq: ' . $dir);
+            return null;
+        }
+
+        if (file_put_contents($target, $photo) === false) {
+            \Log::error('Scales: rasmni saqlab bolmadi: ' . $target);
+            return null;
+        }
+
+        return $filename;
     }
 
     public function ImgToBase64($photo){
         if (empty($photo)) return null;
-        $file = file_get_contents($photo);
-        $base64 = base64_encode($file);
-        return 'data:image/jpeg;base64,' . $base64;
+
+        // Bazada nisbiy yo'l ('uploads/xxx.jpg') turadi — public_path orqali
+        // absolyutga o'giramiz, aks holda o'qish ham cwd ga bog'liq bo'ladi.
+        $path = $photo;
+        if (!preg_match('#^([A-Za-z]:[\\/]|/)#', $path)) {
+            $path = public_path($path);
+        }
+
+        if (!is_file($path) || !is_readable($path)) {
+            \Log::error('Scales: rasm fayli topilmadi: ' . $path);
+            return null;
+        }
+
+        return 'data:image/jpeg;base64,' . base64_encode(file_get_contents($path));
     }
 
 
