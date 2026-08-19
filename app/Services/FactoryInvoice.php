@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Services;
+
+class FactoryInvoice
+{
+    public function authify()
+    {
+        if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW'])) return 1;
+        if ($_SERVER['PHP_AUTH_USER'] != env('FACTORYINVOICE_LOGIN', 'factory-invoice') || $_SERVER['PHP_AUTH_PW'] != env('FACTORYINVOICE_PSW', '4zc-2d8-426b-8a7b')) return 1;
+
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } else {
+            $ip = $_SERVER['REMOTE_ADDR'];
+        }
+        \Log::debug('FactoryInvoice: Response detected from ' . $ip);
+
+//    if (!in_array($ip, explode(',', env('ALLOW_IP')))) return json_encode(['result' => 202, 'data' => null, 'comments' => 'Wrong IP!'], JSON_UNESCAPED_UNICODE);
+    }
+
+
+    public function pullRequest($data)
+    {
+
+        if ($this->authify()) return response()->json(['api_status' => 0, 'api_message' => 'Authentication failed!', 'api_http' => 401]);
+
+        \Log::debug('FactoryInvoice: Request ' . json_encode($data));
+
+        \DB::table('integration_logs')->insert(['module'=>'FactoryInvoice','payload'=>json_encode($data)]);
+
+        $data = json_decode(json_encode($data), true);
+        unset($data['model_auto']);
+        $data['dt'] = date('Y-m-d H:i:s', strtotime($data['dt']));
+
+        if(!in_array($data['factory'], ['000000002','000000004','000000006','000000009','000000010'])) return response()->json(['api_status' => 0, 'api_message' => 'Invalid factory!', 'api_http' => 401]);
+        if(!in_array($data['hgt_filial'], ['000000001','000000002','000000003','000000004','000000005','000000006','000000007','000000008','000000009','000000010','000000011','000000012','000000013'])) return response()->json(['api_status' => 0, 'api_message' => 'Invalid hgt_filial!', 'api_http' => 401]);
+
+        \DB::beginTransaction();
+        try {
+            // DB trigger `tb_factory_integration_bi` (BEFORE INSERT) — hgt_filial va
+            // factory matnli kodlarini egaz tashkilot id lariga o'giradi
+            // (hgt_filial_egaz / factory_egaz). Quyidagi qator o'sha ustunlarni
+            // o'qiydi, shuning uchun BEFORE mantiq INSERT dan oldin bajarilishi shart.
+            $fac_id = \App\Services\DbTriggers\TriggerBus::insertGetId('tb_factory_integration', $data);
+            $fac_1c = \DB::table('tb_factory_integration')->where('id', $fac_id)->first();
+            $inv_detail = [
+                'numb' => $fac_1c->numb,
+                'numb_plomb' => 1,
+                'id_factory' => $fac_1c->factory_egaz,
+                'dt' => date('Y-m-d', strtotime($fac_1c->dt)),
+                'qty_output' => $fac_1c->qty_output * 1000,
+                'qty_accepted' => 0.000,
+                'id_oblgaz' => $fac_1c->hgt_filial_egaz,
+                'out_tp' => $fac_1c->out_tp == 'auto' ? 'avto' : 'vagon',
+                'vagon_drv_name' => $fac_1c->vagon_drv_name,
+                'descr' => "Zavod Integratsiya:" . $fac_1c->id,
+                'numb_auto' => $fac_1c->numb_auto,
+                'numb_pricep' => $fac_1c->numb_pricep,
+                'entry_by' => 0,
+                'brutto' => $fac_1c->brutto,
+                'netto' => $fac_1c->netto,
+                'created_at' => $fac_1c->created_at,
+            ];
+
+            // Asosiy egaz bazasi (brrgz MySQL) — egaz-indexator dagidek `mysql1`.
+            // Nusxa `pgsql1` ga dual write orqali avtomatik ketadi (config/dual_write.php).
+            \DB::connection('mysql1')->table('tb_fc_invoices')->insertGetId($inv_detail);
+
+            \DB::commit();
+            return 1;
+        } catch (\Exception $e) {
+            \DB::rollback();
+            return $e->getMessage();
+        }
+
+//        ClickhouseService::scales(json_encode($data));
+
+//        return 1;
+    }
+}
