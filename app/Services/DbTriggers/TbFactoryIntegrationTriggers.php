@@ -43,6 +43,31 @@ class TbFactoryIntegrationTriggers extends BaseTrigger
     ];
 
     /**
+     * HGT filial matnli kodini egaz tashkilot id ga o'giradi.
+     * Xaritada bo'lmasa `null` — chaqiruvchi buni "noto'g'ri kod" deb biladi.
+     *
+     * @param  string|int|null $code
+     * @return int|null
+     */
+    public static function egazFilial($code)
+    {
+        $k = (string) $code;
+        return isset(self::$filialMap[$k]) ? self::$filialMap[$k] : null;
+    }
+
+    /**
+     * Zavod matnli kodini egaz tashkilot id ga o'giradi.
+     *
+     * @param  string|int|null $code
+     * @return int|null
+     */
+    public static function egazFactory($code)
+    {
+        $k = (string) $code;
+        return isset(self::$factoryMap[$k]) ? self::$factoryMap[$k] : null;
+    }
+
+    /**
      * BEFORE INSERT ON tb_factory_integration — `tb_factory_integration_bi`
      *
      * HGT tomondan kelgan matnli kodlarni egaz tashkilot id lariga o'giradi.

@@ -35,8 +35,18 @@ class FactoryInvoice
         unset($data['model_auto']);
         $data['dt'] = date('Y-m-d H:i:s', strtotime($data['dt']));
 
-        if(!in_array($data['factory'], ['000000002','000000004','000000006','000000009','000000010'])) return response()->json(['api_status' => 0, 'api_message' => 'Invalid factory!', 'api_http' => 401]);
-        if(!in_array($data['hgt_filial'], ['000000001','000000002','000000003','000000004','000000005','000000006','000000007','000000008','000000009','000000010','000000011','000000012','000000013'])) return response()->json(['api_status' => 0, 'api_message' => 'Invalid hgt_filial!', 'api_http' => 401]);
+        // Rad javoblari 1C tomonida ko'rinmaydi — shuning uchun logga ham yoziladi,
+        // aks holda payload `integration_logs` da qolib, jadvallarga tushmaydi va
+        // sababi hech qayerda qolmaydi. `php artisan factory-invoice:replay` shu
+        // qatorlarni topib beradi.
+        if(!in_array($data['factory'], ['000000002','000000004','000000006','000000009','000000010'])) {
+            \Log::error('FactoryInvoice: Invalid factory! factory=' . $data['factory'] . ' numb=' . (isset($data['numb']) ? $data['numb'] : '?'));
+            return response()->json(['api_status' => 0, 'api_message' => 'Invalid factory!', 'api_http' => 401]);
+        }
+        if(!in_array($data['hgt_filial'], ['000000001','000000002','000000003','000000004','000000005','000000006','000000007','000000008','000000009','000000010','000000011','000000012','000000013'])) {
+            \Log::error('FactoryInvoice: Invalid hgt_filial! hgt_filial=' . $data['hgt_filial'] . ' numb=' . (isset($data['numb']) ? $data['numb'] : '?'));
+            return response()->json(['api_status' => 0, 'api_message' => 'Invalid hgt_filial!', 'api_http' => 401]);
+        }
 
         \DB::beginTransaction();
         try {
@@ -73,6 +83,10 @@ class FactoryInvoice
             return 1;
         } catch (\Exception $e) {
             \DB::rollback();
+            // Xato faqat javob matnida qaytardi — 1C uni o'qimaydi, natijada
+            // "logda bor, jadvalda yo'q" holati sabab qoldirmasdan yuzaga kelardi.
+            \Log::error('FactoryInvoice: INSERT xatosi numb=' . (isset($data['numb']) ? $data['numb'] : '?')
+                . ' dt=' . (isset($data['dt']) ? $data['dt'] : '?') . ' — ' . $e->getMessage());
             return $e->getMessage();
         }
 
