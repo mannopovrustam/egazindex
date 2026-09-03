@@ -53,7 +53,7 @@ return [
     // Standart ulanish — PostgreSQL (`pgsql` = indexator bazasi).
     // DIQQAT: DB_* env kalitlari MySQL ulanishiniki bo'lib qoldi (DB_PORT=3306),
     // shuning uchun DB_CONNECTION dan boshqa DB_* qiymatlari pgsql ga TEGISHLI EMAS.
-    'default' => env('DB_CONNECTION', 'pgsql'),
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------

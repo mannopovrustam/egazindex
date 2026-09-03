@@ -27,7 +27,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Auth::routes();
+// Auth sahifalari YOPIQ: bu xizmat faqat mashina-mashina integratsiya qabul
+// qiladi, brauzer orqali kirish ko'zda tutilmagan. `Auth::routes()` ataylab
+// chaqirilmaydi — /login, /register, /password/* hammasi 404.
+// Nomlangan `login` marshruti baribir kerak: `auth` middleware (/home)
+// mehmonni route('login') ga yo'naltiradi — u yo'q bo'lsa 404 o'rniga
+// 500 (Route [login] not defined) chiqardi.
+Route::any('/login', function () { abort(404); })->name('login');
 
 // L5.5 da: Route::get('/home', 'HomeController@index')->name('home');
 // Kontroller-satr sintaksisi L8 dan olib tashlangan; URL va route nomi o'zgarmadi.
