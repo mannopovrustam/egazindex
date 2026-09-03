@@ -76,11 +76,30 @@ class FactoryInvoice
             ];
 
             // Asosiy egaz bazasi (brrgz MySQL) — egaz-indexator dagidek `mysql1`.
-            // Nusxa `pgsql1` ga dual write orqali avtomatik ketadi (config/dual_write.php).
-            \DB::connection('mysql1')->table('tb_fc_invoices')->insertGetId($inv_detail);
+            // DUAL_WRITE=true bo'lsa nusxa `pgsql1` ga avtomatik ketadi (config/dual_write.php).
+            $inv_id = \DB::connection('mysql1')->table('tb_fc_invoices')->insertGetId($inv_detail);
 
             \DB::commit();
-            return 1;
+
+            // 1C QR kodni O'ZI chizadi: bazaviy manzilga shu tokenni ulaydi
+            // (https://egaz.uz/factory-invoice-qr/{token}). Token egaz dagi yuk xati
+            // qatoriga (tb_fc_invoices.id) bog'langan.
+            $token = $this->qrToken($inv_id);
+
+            \Log::debug('FactoryInvoice: invoice id=' . $inv_id . ' qr_token=' . ($token === null ? '-' : $token));
+
+            // ESKI JAVOB shunchaki "1" edi. `result` maydoni shu moslik uchun
+            // qoldirilgan, token esa `data` ichida. (egaz-indexator 0f2c729 bilan aynan)
+            return response()->json([
+                'api_status'  => 1,
+                'api_message' => 'success',
+                'api_http'    => 200,
+                'result'      => 1,
+                'data'        => [
+                    'id'          => $inv_id,
+                    'qr_token'    => $token
+                ],
+            ], 200);
         } catch (\Exception $e) {
             \DB::rollback();
             // Xato faqat javob matnida qaytardi — 1C uni o'qimaydi, natijada
@@ -93,5 +112,31 @@ class FactoryInvoice
 //        ClickhouseService::scales(json_encode($data));
 
 //        return 1;
+    }
+
+    /**
+     * QR token: md5(EGAZ APP_KEY . '-' . id) . '-' . id
+     *
+     * Aynan shu formulani egaz MAIN dagi marshrut tekshiradi
+     * (routes/web.php — Route::get('factory-invoice-qr/{hash}')): hash '-' bo'yicha
+     * ikkiga bo'linadi, o'ng tomoni tb_fc_invoices.id, chap tomoni md5.
+     *
+     * Kalit — egaz ning XOM env('APP_KEY') qiymati ("base64:" prefiksi bilan birga),
+     * config/waybill_qr.php ga qarang. Sozlanmagan bo'lsa NULL qaytadi: noto'g'ri
+     * token berib 404 chiqadigan QR chizdirgandan ko'ra token bermagan yaxshi.
+     */
+    private function qrToken($id)
+    {
+        $id  = (int) $id;
+        $key = (string) config('waybill_qr.key');
+
+        if ($id <= 0) return null;
+
+        if ($key === '') {
+            \Log::error('FactoryInvoice: WAYBILL_QR_KEY .env da sozlanmagan — QR token berilmadi (invoice id=' . $id . ')');
+            return null;
+        }
+
+        return md5($key . '-' . $id) . '-' . $id;
     }
 }

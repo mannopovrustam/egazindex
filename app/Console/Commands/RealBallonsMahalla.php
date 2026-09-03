@@ -16,11 +16,10 @@ use Illuminate\Support\Facades\Schema;
  * 71 kundan keyin ham 5 kunlik qadam davom etadi (71to75 ... 96to100),
  * undan keyingisi 100tomore.
  *
- * MANBA:   cms_users — `--source` ulanishi (standart `pgsql1` = egaz-push).
- *          egaz-indexator da bu `mysql1` (brrgz) edi; bu loyihada manba
- *          o'qish PostgreSQL nusxasidan ketadi (docs/dual-write.md).
+ * MANBA:   brrgz.cms_users — `--source` ulanishi (standart `mysql1`, egaz-indexator
+ *          dagidek). `--source=pgsql1` berilsa PostgreSQL nusxasidan o'qiydi.
  * NATIJA:  egaz_idxdb.i_real_ballons_mahallas (DEFAULT `mysql` ulanishi) —
- *          va dual write orqali AVTOMATIK `pgsql` nusxasiga ham.
+ *          DUAL_WRITE=true bo'lsa dual write orqali `pgsql` nusxasiga ham.
  *
  * HISOB: d = <dt> dan u.rdt gacha bo'lgan kunlar soni.
  *        d 0..30 → 1to30, 31..35 → 31to35, ..., 96..100 → 96to100,
@@ -38,11 +37,12 @@ use Illuminate\Support\Facades\Schema;
  *   php artisan real:ballons-mah --dt=2026-08-01
  *   php artisan real:ballons-mah --region=7
  *   php artisan real:ballons-mah --dry-run          # yozmaydi, faqat ko'rsatadi
- *   php artisan real:ballons-mah --source=mysql1    # manba eski MySQL (brrgz)
+ *   php artisan real:ballons-mah --source=pgsql1    # manba PostgreSQL nusxasi (egaz-push)
  *
  * Qayta yurgizilsa — o'sha `dt` (va tanlangan viloyat) qatorlari avval
  * O'CHIRILADI, keyin qaytadan yoziladi. DELETE ham, INSERT ham so'rov
- * quruvchisidan o'tadi, ya'ni ikkalasi ham PostgreSQL nusxasiga tushadi.
+ * quruvchisidan o'tadi, ya'ni DUAL_WRITE=true bo'lsa ikkalasi ham PostgreSQL
+ * nusxasiga tushadi.
  *
  * Jadval QO'LDA yaratiladi (loyihada migration ishlatilmaydi):
  *   mysql -u <user> -p egaz_idxdb < database/sql/i_real_ballons_mahallas.sql
@@ -53,7 +53,7 @@ class RealBallonsMahalla extends Command
     protected $signature = 'real:ballons-mah
         {--dt= : Hisob sanasi (Y-m-d, default bugun)}
         {--region= : Faqat shu id_region}
-        {--source=pgsql1 : cms_users olinadigan ulanish (pgsql1 = egaz-push, mysql1 = brrgz)}
+        {--source=mysql1 : cms_users olinadigan ulanish (mysql1 = brrgz, egaz-indexator dagidek; pgsql1 = egaz-push nusxasi)}
         {--chunk=500 : Bir INSERT da yoziladigan qatorlar soni}
         {--dry-run : Hech narsa yozmaydi, faqat hisoblab ko\'rsatadi}';
 

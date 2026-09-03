@@ -1,3 +1,11 @@
+> **Yangilanish (2026-09-03, kechqurun).** Quyidagi audit 28-avgust holatini aks ettiradi.
+> Shundan keyin egazindex `egaz-indexator` bilan TO'LIQ PARITETGA keltirildi: manba
+> jadvallar yana `mysql1` (brrgz MySQL) dan, MySQL dialektida o'qiladi (§5 dagi `pgsql1`
+> ustuni endi TARIXIY); indexator ning 2–3 sentyabr o'zgarishlari (Realizations,
+> Levelmeters, FactoryInvoice QR token, pg:sync ro'yxatlari) ko'chirildi.
+> `DUAL_WRITE=false` → aynan egaz-indexator; `DUAL_WRITE=true` → yagona farq: har bir
+> yozuv PostgreSQL nusxasiga ham ketadi.
+
 # AUDIT: egaz-indexator (L5.5) ↔ egazindex (L13) — to'liq solishtiruv va dual-write tekshiruvi
 
 Sana: 2026-08-28. Qamrov: **barcha** app/routes/config fayllari (fayl-ma-fayl diff),

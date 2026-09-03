@@ -69,7 +69,7 @@ class calcOrgDebit extends Command {
             return \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $date)->format('Y-m');
         })->toArray();
 
-        $users = DB::connection('pgsql1')->table('cms_users')->where('id_cms_privileges', 4)->select('kod', 'name', 'id_org', 'id_mahalla')->get();
+        $users = DB::connection('mysql1')->table('cms_users')->where('id_cms_privileges', 4)->select('kod', 'name', 'id_org', 'id_mahalla')->get();
 
         DB::table('i_deposit_orgs')->truncate();
         DB::table('i_deposit_details')->truncate();
@@ -103,7 +103,7 @@ class calcOrgDebit extends Command {
         DB::table('i_deposit_orgs')->where('yy', $yy)->where('mm', $mm)->delete();
         DB::table('i_deposit_details')->where('yy', $yy)->where('mm', $mm)->delete();
 
-        $users = DB::connection('pgsql1')->table('cms_users')->where('id_cms_privileges', 4)->select('kod', 'name', 'id_org', 'id_mahalla')->get();
+        $users = DB::connection('mysql1')->table('cms_users')->where('id_cms_privileges', 4)->select('kod', 'name', 'id_org', 'id_mahalla')->get();
         foreach ($users as $user) {
             OrgDebit::dispatch($mm, $yy, $user);
         }

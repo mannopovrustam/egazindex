@@ -17,8 +17,8 @@ namespace App\Services;
  *       sweeper BU QATORNI OLMAYDI (u faqat norm_status=2 ni suradi), 1C ga 422 qaytadi
  *
  * Ulanishlar:
- *   default 'pgsql'  = indexator bazasi (integration_logs, tb_factory_signature_logs)
- *   'pgsql1'         = brrgz       (tb_factory_signatures)  <- EGAZ MAIN
+ *   default 'mysql'  = egaz_idxdb  (integration_logs, tb_factory_signature_logs)
+ *   'mysql1'         = brrgz       (tb_factory_signatures)  <- EGAZ MAIN
  */
 class FactorySignature
 {
@@ -205,14 +205,7 @@ class FactorySignature
             return response()->json(['api_status' => 0, 'api_message' => $err, 'api_http' => 422], 422);
         }
 
-        // EGAZ MAIN (brrgz MySQL) — egaz-indexator dagidek `mysql1`.
-        //
-        // ⚠ O'QISH ham shu ulanishda: pastdagi `where('uid', ...)` imzo allaqachon
-        //   bor-yo'qligini aniqlaydi va 1C ga qaytariladigan `id` shu bazadan
-        //   olinadi. Ya'ni birlamchi manba (source of truth) — MySQL.
-        //   `pgsql1` nusxasiga yozishni dual write o'zi bajaradi
-        //   (config/dual_write.php).
-        $db = \DB::connection('mysql1');
+        $db = \DB::connection('mysql1');   // EGAZ MAIN (brrgz)
 
         try {
             $ex = $db->table('tb_factory_signatures')->where('uid', $row['uid'])->first(['id', 'st']);
@@ -239,11 +232,11 @@ class FactorySignature
                 ], 200);
             }
         } catch (\Exception $ex2) {
-            // UNIQUE(uid) poygasi: ikkita bir vaqtdagi POST. Bu XATO EMAS.
+            // 1062 = UNIQUE(uid) poygasi: ikkita bir vaqtdagi POST. Bu XATO EMAS.
             // DIQQAT: xabar MATNIDAN qidirmaymiz — Laravel QueryException xabariga BUTUN SQL
             // (barcha bind'lar, ya'ni raw_payload ham) qo'shiladi, u yerdagi "1062" satri
-            // istalgan xatoni "dublikat" qilib ko'rsatardi. Faqat SQLSTATE / driver errno.
-            if ($this->isDuplicate($ex2)) {
+            // istalgan xatoni "dublikat" qilib ko'rsatardi. Faqat driver errno.
+            if ($this->errno($ex2) === 1062) {
                 $dup = null;
                 try {
                     $dup = $db->table('tb_factory_signatures')->where('uid', $row['uid'])->first(['id']);
@@ -259,7 +252,7 @@ class FactorySignature
                 ], 200);
             }
 
-            \Log::error('FactorySignature: pgsql1 write: ' . $ex2->getMessage());
+            \Log::error('FactorySignature: mysql1 write: ' . $ex2->getMessage());
 
             if ($this->isPermanent($ex2)) {
                 // Bu payload HECH QACHON yozilmaydi (jadval/ustun yo'q, ma'lumot xato).
@@ -296,7 +289,7 @@ class FactorySignature
         ], 200);
     }
 
-    /** PDO drayver errno (QueryException $errorInfo dan) — xabar matnidan EMAS */
+    /** PDO/MySQL errno (QueryException $errorInfo dan) — xabar matnidan EMAS */
     private function errno($ex)
     {
         if (!($ex instanceof \Illuminate\Database\QueryException)) return 0;
@@ -305,45 +298,21 @@ class FactorySignature
         return (int) $info[1];
     }
 
-    /** SQLSTATE kodi ($errorInfo[0]) */
-    private function sqlstate($ex)
-    {
-        if (!($ex instanceof \Illuminate\Database\QueryException)) return '';
-        $info = $ex->errorInfo;
-        return (is_array($info) && isset($info[0])) ? (string) $info[0] : '';
-    }
-
-    /**
-     * UNIQUE(uid) buzilishi — ikkita bir vaqtdagi POST poygasi.
-     *
-     * PostgreSQL da bu SQLSTATE 23505; errorInfo[1] esa drayverning ichki
-     * raqami (MySQL dagi 1062 EMAS), shuning uchun SQLSTATE bo'yicha
-     * tekshiriladi. 1062 eski MySQL ulanishi uchun qoldirildi.
-     */
-    private function isDuplicate($ex)
-    {
-        return $this->sqlstate($ex) === '23505' || $this->errno($ex) === 1062;
-    }
-
     /** true = qayta urinish foydasiz (ma'lumot/sxema xatosi). Ulanish xatolari => false. */
     private function isPermanent($ex)
     {
-        // Dublikat alohida (muvaffaqiyat sifatida) ishlanadi — bu yerda EMAS.
-        if ($this->isDuplicate($ex)) return false;
-
         $errno = $this->errno($ex);
+        if ($errno === 0) return false;                       // driver/ulanish xatosi — vaqtincha
 
-        if ($errno !== 0 && in_array($errno, self::$PERMANENT_ERRNO, true)) return true;
+        if (in_array($errno, self::$PERMANENT_ERRNO, true)) return true;
 
-        $sqlstate = $this->sqlstate($ex);
-        if ($sqlstate === '') return false;                   // driver/ulanish xatosi — vaqtincha
-        $cls = substr($sqlstate, 0, 2);
+        $info     = $ex instanceof \Illuminate\Database\QueryException ? $ex->errorInfo : null;
+        $sqlstate = (is_array($info) && isset($info[0])) ? (string) $info[0] : '';
+        $cls      = substr($sqlstate, 0, 2);
 
         // 22xxx = data exception, 42xxx = sintaksis/jadval/ustun yo'q.
-        // 23xxx = cheklov buzilishi (NOT NULL / FK / CHECK) — PG da MySQL ning
-        //         1048/1452 o'rnini bosadi; dublikat (23505) yuqorida chiqarildi.
         // 08xxx / HY000 / 40001 (deadlock) / 28000 (parol) => VAQTINCHA (qayta urinamiz).
-        return ($cls === '22' || $cls === '42' || $cls === '23');
+        return ($cls === '22' || $cls === '42');
     }
 
     private function markLog($log_id, $status, $error, $waybill_id = null)

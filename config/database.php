@@ -8,9 +8,11 @@ use Pdo\Mysql;
 | egaz-index13 — ulanishlar egaz-indexator dagilar bilan AYNAN bir xil
 |--------------------------------------------------------------------------
 |
-|   mysql       → DB_DATABASE   (egaz_idxdb — ESKI manba, faqat `pg:sync` uchun)
+|   mysql       → DB_DATABASE   (egaz_idxdb — STANDART; ilovaning o'z bazasi)
 |   mysql_brrgz → DB_DATABASE1  (DB_HOST da — asosiy egaz bazasi)
-|   mysql1      → DB_DATABASE1  (DB_HOST1 da — EGAZ MAIN / brrgz)
+|   mysql1      → DB_DATABASE1  (DB_HOST1 da — EGAZ MAIN / brrgz: manba o'qish
+|                                va tb_fc_invoices / tb_factory_signatures /
+|                                tb_social_sphere yozish)
 |   mysql_egaz  → DB_DATABASE2  (DB_HOST1 da)
 |   clickhouse  → CLICKHOUSE_*  (smi2/phpclickhouse; Laravel driver EMAS,
 |                                faqat sozlama saqlagich — ClickHouseServiceProvider o'qiydi)
@@ -31,13 +33,16 @@ use Pdo\Mysql;
 | egaz_idxdb), "1" li nom esa TASHQI bazani bildiradi (mysql1 = egaz brrgz).
 | PostgreSQL tomonida ham shu tartib: pgsql = indexator, pgsql1 = push.
 |
-| ⚙ ILOVA ENDI POSTGRESQL DA ISHLAYDI. app/ ichidagi butun kod PG ga o'tkazildi:
-|     eski `mysql`  chaqiruvlari → `pgsql`  (standart ulanish)
-|     eski `mysql1` chaqiruvlari → `pgsql1`
-|   MySQL ulanishlari (pastda) FAQAT ko'chirish quroli sifatida qoldirilgan:
-|   `pg:sync` ular orqali eski bazadan o'qib PostgreSQL ga yozadi.
+| ⚙ ILOVA EGAZ-INDEXATOR DAGIDEK MYSQL DA ISHLAYDI:
+|     o'qish — manba jadvallar (cms_users, organizations, tb_gas_debit,
+|              tb_requests* ...) `mysql1` dan, o'z jadvallari `mysql` dan;
+|     yozish — `mysql` (egaz_idxdb) va `mysql1` (brrgz).
+|   PostgreSQL ulanishlari (pgsql, pgsql1) FAQAT NUSXA uchun: DUAL_WRITE=true
+|   bo'lsa har bir yozuv ularga ham ko'chiriladi (config/dual_write.php);
+|   DUAL_WRITE=false bo'lsa ularga umuman tegilmaydi — ilova aynan
+|   egaz-indexator kabi ishlaydi. `pg:sync` / `pg:pull` — nusxani tiklash qurollari.
 |
-| ⚠️ Lokalda ikkalasi bitta bazaga (egaz_push) qaratilgan bo'lishi mumkin —
+| ⚠️ Lokalda ikkala PG ulanishi bitta bazaga qaratilgan bo'lishi mumkin —
 |   prod'da egaz_idxpost alohida serverda (192.168.0.6) turadi.
 |
 */
@@ -50,9 +55,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    // Standart ulanish — PostgreSQL (`pgsql` = indexator bazasi).
-    // DIQQAT: DB_* env kalitlari MySQL ulanishiniki bo'lib qoldi (DB_PORT=3306),
-    // shuning uchun DB_CONNECTION dan boshqa DB_* qiymatlari pgsql ga TEGISHLI EMAS.
+    // Standart ulanish — MySQL (`mysql` = egaz_idxdb), egaz-indexator dagidek.
     'default' => env('DB_CONNECTION', 'mysql'),
 
     /*

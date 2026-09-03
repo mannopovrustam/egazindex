@@ -12,9 +12,14 @@
 |   yozish       →  mysql   (egaz_idxdb)        →  nusxa: pgsql   (egaz_idxpost)
 |   yozish       →  mysql1  (brrgz, EGAZ MAIN)  →  nusxa: pgsql1  (egaz_push)
 |
-| MANBA O'QISH O'ZGARMAYDI: cms_users / organizations / tb_gas_debit kabi
-| manba jadvallar oldingidek `pgsql1` (egaz-push PostgreSQL) dan o'qiladi.
-| Faqat YOZISH amallari ikkilanadi.
+| O'QISH O'ZGARMAYDI: cms_users / organizations / tb_gas_debit kabi manba
+| jadvallar egaz-indexator dagidek `mysql1` (brrgz MySQL) dan, o'z jadvallari
+| `mysql` dan o'qiladi. Faqat YOZISH amallari ikkilanadi — ilova PostgreSQL
+| ulanishlariga o'qish uchun hech qachon murojaat qilmaydi.
+|
+| DUAL_WRITE=false → nusxa olinmaydi, PostgreSQL ga umuman tegilmaydi: ilova
+|   AYNAN egaz-indexator kabi ishlaydi.
+| DUAL_WRITE=true  → yagona farq shu: har bir yozuv PostgreSQL nusxasiga ham ketadi.
 |
 | QANDAY ULANGAN (chaqiruv joylarini o'zgartirmasdan):
 |   App\Providers\DualWriteServiceProvider `mysql` drayveri uchun maxsus

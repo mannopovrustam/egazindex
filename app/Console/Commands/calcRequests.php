@@ -36,7 +36,7 @@ class calcRequests extends Command {
         $i = 'Requests command launched for: ' . $dt;
         $this->info($i);
         // L13: select() xom SATR kutadi — Expression obyektida __toString() yo'q.
-        $rows = \DB::connection('pgsql1')->select("with cte as (select r.dt_creation as dt, EXTRACT(YEAR FROM r.dt_creation)::int as yy, EXTRACT(MONTH FROM r.dt_creation)::int as mm, o.id_region, o.id as id_org,r.amount, (SELECT SUM(rb.price) FROM tb_requests_ballons as rb where rb.id_request=r.id and rb.passed_by is not null) as amount_real,r.accepted_qty as total_qty, r.passed_qty as real_qty, r.returned_qty as back_qty from tb_requests as r join organizations as o on o.id=r.id_raygas where r.dt_creation='$dt') select dt,yy,mm,id_region,id_org,SUM(amount) as amount_total, SUM(COALESCE(amount_real,0.00)) as amount_real,SUM(total_qty) as total_qty, SUM(real_qty) as real_qty, SUM(back_qty) as back_qty FROM cte group by dt,yy,mm,id_region,id_org");
+        $rows = \DB::connection('mysql1')->select("with cte as (select r.dt_creation as dt, YEAR(r.dt_creation) as yy, MONTH(r.dt_creation) as mm, o.id_region, o.id as id_org,r.amount, (SELECT SUM(rb.price) FROM tb_requests_ballons as rb where rb.id_request=r.id and rb.passed_by is not null) as amount_real,r.accepted_qty as total_qty, r.passed_qty as real_qty, r.returned_qty as back_qty from tb_requests as r join organizations as o on o.id=r.id_raygas where r.dt_creation='$dt') select dt,yy,mm,id_region,id_org,SUM(amount) as amount_total, SUM(IFNULL(amount_real,0.00)) as amount_real,SUM(total_qty) as total_qty, SUM(real_qty) as real_qty, SUM(back_qty) as back_qty FROM cte group by dt,yy,mm,id_region,id_org");
         if (!$rows || count($rows) <= 0) {
             $i = 'Requests command no data found for ' . $dt;
             \Log::info($i); $this->info($i);
@@ -69,7 +69,7 @@ class calcRequests extends Command {
     }
 
     private function RequestsAll() {
-        $rows = \DB::connection('pgsql1')->select("with cte as (select r.dt_creation as dt, EXTRACT(YEAR FROM r.dt_creation)::int as yy, EXTRACT(MONTH FROM r.dt_creation)::int as mm, o.id_region, o.id as id_org,r.amount, (SELECT SUM(rb.price) FROM tb_requests_ballons as rb where rb.id_request=r.id and rb.passed_by is not null) as amount_real,r.accepted_qty as total_qty, r.passed_qty as real_qty, r.returned_qty as back_qty from tb_requests as r join organizations as o on o.id=r.id_raygas) select dt,yy,mm,id_region,id_org,SUM(amount) as amount_total, SUM(COALESCE(amount_real,0.00)) as amount_real,SUM(total_qty) as total_qty, SUM(real_qty) as real_qty, SUM(back_qty) as back_qty FROM cte group by dt,yy,mm,id_region,id_org");
+        $rows = \DB::connection('mysql1')->select("with cte as (select r.dt_creation as dt, YEAR(r.dt_creation) as yy, MONTH(r.dt_creation) as mm, o.id_region, o.id as id_org,r.amount, (SELECT SUM(rb.price) FROM tb_requests_ballons as rb where rb.id_request=r.id and rb.passed_by is not null) as amount_real,r.accepted_qty as total_qty, r.passed_qty as real_qty, r.returned_qty as back_qty from tb_requests as r join organizations as o on o.id=r.id_raygas) select dt,yy,mm,id_region,id_org,SUM(amount) as amount_total, SUM(IFNULL(amount_real,0.00)) as amount_real,SUM(total_qty) as total_qty, SUM(real_qty) as real_qty, SUM(back_qty) as back_qty FROM cte group by dt,yy,mm,id_region,id_org");
         if (!$rows || count($rows) <= 0) {
             $i = 'Requests command no data found for all period!';
             $this->info($i);

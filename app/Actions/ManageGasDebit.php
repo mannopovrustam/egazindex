@@ -23,7 +23,7 @@ class ManageGasDebit
         // har yurishda 500 tali blokni band qilib turardi.
         $this->transactions = DB::table('i_money_failed')->where('id_tran','>',150503408)->orderBy('id_tran')->take(500)->pluck('id_tran')->toArray();
         DB::table('i_money_failed')->whereIn('id_tran', $this->transactions)->delete();
-        $gasDebits = DB::connection('pgsql1')->table('tb_gas_debit')->whereIn('id', $this->transactions)->get();
+        $gasDebits = DB::connection('mysql1')->table('tb_gas_debit')->whereIn('id', $this->transactions)->get();
 
         foreach($gasDebits->groupBy('dt_pay') as $key => $item){
             (new IMoneyDebit())->handle($gasDebits->where('dt_pay', $key), $key);

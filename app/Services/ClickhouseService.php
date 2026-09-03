@@ -16,8 +16,8 @@ class ClickhouseService {
 
         $version = (int)time(); // Ensure version is an integer
 
-        $debits = \DB::connection('pgsql1')->table('cms_users as u')
-            ->select('d.id','d.id_abonent','u.name','u.dtbirth','u.mobile','u.sex','u.id_region','r.name_uz as region','u.id_district','t.name_uz as district','u.id_mahalla','m.name as mahalla','u.address','u.kadastr','u.kod','u.psp','u.pinfl','u.qty_family','u.qty_lives','u.deposit','u.created_at','u.insp as attach_insp','u.is_need','u.tp','u.avai_qty','d.dt_pay','d.amount','d.supplier','d.sys_bid','d.payer_name','d.payer_inn','d.payee_id','d.payer_branch','d.payer_account','o.name as org','d.payee_branch','d.payee_account','d.payee_inn','d.payee_name','d.pay_type',\DB::raw("json_build_object('id',d.id,'id_abonent',d.id_abonent,'dt_pay',d.dt_pay,'amount',d.amount,'descr',d.descr,'supplier',d.supplier,'sys_bid',d.sys_bid,'sys_tid',d.sys_tid,'payer_branch',d.payer_branch,'payer_account',d.payer_account,'payer_name',d.payer_name,'payer_inn',d.payer_inn,'payee_branch',d.payee_branch,'payee_account',d.payee_account,'payee_id',d.payee_id,'payee_inn',d.payee_inn,'payee_name',d.payee_name,'purpose_code',d.purpose_code,'purpose_text',d.purpose_text,'amount_cur',d.amount_cur,'pay_type',d.pay_type,'st',d.st,'created_at',d.created_at,'updated_at',d.updated_at,'confirmed_at',d.confirmed_at) as payload"),'d.st','d.confirmed_at',\DB::raw("$version as version"))
+        $debits = \DB::connection('mysql1')->table('cms_users as u')
+            ->select('d.id','d.id_abonent','u.name','u.dtbirth','u.mobile','u.sex','u.id_region','r.name_uz as region','u.id_district','t.name_uz as district','u.id_mahalla','m.name as mahalla','u.address','u.kadastr','u.kod','u.psp','u.pinfl','u.qty_family','u.qty_lives','u.deposit','u.created_at','u.insp as attach_insp','u.is_need','u.tp','u.avai_qty','d.dt_pay','d.amount','d.supplier','d.sys_bid','d.payer_name','d.payer_inn','d.payee_id','d.payer_branch','d.payer_account','o.name as org','d.payee_branch','d.payee_account','d.payee_inn','d.payee_name','d.pay_type',\DB::raw("JSON_OBJECT('id',d.id,'id_abonent',d.id_abonent,'dt_pay',d.dt_pay,'amount',d.amount,'descr',d.descr,'supplier',d.supplier,'sys_bid',d.sys_bid,'sys_tid',d.sys_tid,'payer_branch',d.payer_branch,'payer_account',d.payer_account,'payer_name',d.payer_name,'payer_inn',d.payer_inn,'payee_branch',d.payee_branch,'payee_account',d.payee_account,'payee_id',d.payee_id,'payee_inn',d.payee_inn,'payee_name',d.payee_name,'purpose_code',d.purpose_code,'purpose_text',d.purpose_text,'amount_cur',d.amount_cur,'pay_type',d.pay_type,'st',d.st,'created_at',d.created_at,'updated_at',d.updated_at,'confirmed_at',d.confirmed_at) as payload"),'d.st','d.confirmed_at',\DB::raw("$version as version"))
             ->join('regions as r', 'r.id', '=', 'u.id_region')
             ->join('districts as t', 't.id', '=', 'u.id_district')
             ->join('mahallas as m', 'm.id', '=', 'u.id_mahalla')
@@ -111,7 +111,7 @@ class ClickhouseService {
 
         $version = time();
 
-        $debits = \DB::connection('pgsql1')->table('cms_users as u')
+        $debits = \DB::connection('mysql1')->table('cms_users as u')
             ->select('d.id','d.id_abonent','u.name','u.dtbirth','u.mobile','u.sex','u.id_region','r.name_uz as region','u.id_district','t.name_uz as district','u.id_mahalla','m.name as mahalla','u.address','u.kadastr','u.kod','u.psp','u.pinfl','u.qty_family','u.qty_lives','u.deposit','u.created_at','u.insp as attach_insp','u.is_need','u.tp','u.avai_qty','d.dt_pay','d.amount','d.supplier','d.sys_bid','d.payer_name','d.payer_inn','d.payee_id','d.payer_branch','d.payer_account','o.name as org','d.payee_branch','d.payee_account','d.payee_inn','d.payee_name','d.pay_type','d.st','d.confirmed_at',\DB::raw("$version as version"))
             ->join('regions as r', 'r.id', '=', 'u.id_region')
             ->join('districts as t', 't.id', '=', 'u.id_district')
@@ -147,8 +147,8 @@ class ClickhouseService {
         \Log::info('Date: '.$date);
         $version = (int)time();
 
-        $realDetails = \DB::connection('pgsql1')->table('tb_requests_ballons as rb')
-            ->select(\DB::raw("r.id as r_id,r.numb as r_numb,r.id_gns as r_id_gns,o.name as gns,r.id_raygas as r_id_raygas, o2.name as raygas, rg.id as r_id_region, rg.name_uz as r_region, ds.id as r_id_district, ds.name_uz as r_district, r.id_rzvr as r_id_rzvr,rv.name as rzvr_name,r.applied_to as r_applied_to,r.created_by as r_created_by,r.dt_creation as r_dt_creation,r.accepted_qty as r_accepted_qty,r.passed_qty as r_passed_qty,r.returned_qty as r_returned_qty,r.amount as r_amount,r.bhash as r_bhash,r.accepted_by as r_accepted_by,r.dt_acception as r_dt_acception,r.descr as r_descr,r.id_driver as r_id_driver,r.id_vehicle as r_id_vehicle,r.created_at as r_created_at,v.id_gps as v_id_gps,v.name as v_name,v.number as v_number,v.man_year as v_man_year,v.weight as v_weight,v.id_org as v_id_org,vo.name as v_org,rb.id as rb_id,rb.id_request as rb_id_request,rb.id_ballon as rb_id_ballon,rb.price as rb_price,rb.id_abonent as rb_id_abonent,rb.id_relation as rb_id_relation,rb.passed_by as rb_passed_by,rb.location_lon as rb_location_lon,rb.location_lat as rb_location_lat,rb.passed_at as rb_passed_at,rb.dt as rb_dt,rb.created_at as rb_created_at,json_build_object('tb_requests', json_build_object('id', r.id,'numb', r.numb,'id_gns', r.id_gns,'id_raygas', r.id_raygas,'id_rzvr', r.id_rzvr,'applied_to', r.applied_to,'created_by', r.created_by,'dt_creation', r.dt_creation,'accepted_qty', r.accepted_qty,'passed_qty', r.passed_qty,'returned_qty', r.returned_qty,'amount', r.amount,'bhash', r.bhash,'accepted_by', r.accepted_by,'dt_acception', r.dt_acception,'descr', r.descr,'id_driver', r.id_driver,'id_vehicle', r.id_vehicle,'created_at', r.created_at,'updated_at', r.updated_at),'tb_requests_ballons',json_build_object('id', rb.id,'id_request', rb.id_request,'id_ballon', rb.id_ballon,'price', rb.price,'id_abonent', rb.id_abonent,'id_relation', rb.id_relation,'passed_by', rb.passed_by,'location_lon', rb.location_lon,'location_lat', rb.location_lat,'passed_at', rb.passed_at,'dt', rb.dt,'created_at', rb.created_at,'updated_at', rb.updated_at)) AS payload, $version as version"))
+        $realDetails = \DB::connection('mysql1')->table('tb_requests_ballons as rb')
+            ->select(\DB::raw("r.id as r_id,r.numb as r_numb,r.id_gns as r_id_gns,o.name as gns,r.id_raygas as r_id_raygas, o2.name as raygas, rg.id as r_id_region, rg.name_uz as r_region, ds.id as r_id_district, ds.name_uz as r_district, r.id_rzvr as r_id_rzvr,rv.name as rzvr_name,r.applied_to as r_applied_to,r.created_by as r_created_by,r.dt_creation as r_dt_creation,r.accepted_qty as r_accepted_qty,r.passed_qty as r_passed_qty,r.returned_qty as r_returned_qty,r.amount as r_amount,r.bhash as r_bhash,r.accepted_by as r_accepted_by,r.dt_acception as r_dt_acception,r.descr as r_descr,r.id_driver as r_id_driver,r.id_vehicle as r_id_vehicle,r.created_at as r_created_at,v.id_gps as v_id_gps,v.name as v_name,v.number as v_number,v.man_year as v_man_year,v.weight as v_weight,v.id_org as v_id_org,vo.name as v_org,rb.id as rb_id,rb.id_request as rb_id_request,rb.id_ballon as rb_id_ballon,rb.price as rb_price,rb.id_abonent as rb_id_abonent,rb.id_relation as rb_id_relation,rb.passed_by as rb_passed_by,rb.location_lon as rb_location_lon,rb.location_lat as rb_location_lat,rb.passed_at as rb_passed_at,rb.dt as rb_dt,rb.created_at as rb_created_at,JSON_OBJECT('tb_requests', JSON_OBJECT('id', r.id,'numb', r.numb,'id_gns', r.id_gns,'id_raygas', r.id_raygas,'id_rzvr', r.id_rzvr,'applied_to', r.applied_to,'created_by', r.created_by,'dt_creation', r.dt_creation,'accepted_qty', r.accepted_qty,'passed_qty', r.passed_qty,'returned_qty', r.returned_qty,'amount', r.amount,'bhash', r.bhash,'accepted_by', r.accepted_by,'dt_acception', r.dt_acception,'descr', r.descr,'id_driver', r.id_driver,'id_vehicle', r.id_vehicle,'created_at', r.created_at,'updated_at', r.updated_at),'tb_requests_ballons',JSON_OBJECT('id', rb.id,'id_request', rb.id_request,'id_ballon', rb.id_ballon,'price', rb.price,'id_abonent', rb.id_abonent,'id_relation', rb.id_relation,'passed_by', rb.passed_by,'location_lon', rb.location_lon,'location_lat', rb.location_lat,'passed_at', rb.passed_at,'dt', rb.dt,'created_at', rb.created_at,'updated_at', rb.updated_at)) AS payload, $version as version"))
             ->join('tb_requests as r', 'r.id', '=', 'rb.id_request')
             ->join('organizations as o', 'o.id', '=', 'r.id_gns')
             ->join('organizations as o2', 'o2.id', '=', 'r.id_raygas')
@@ -184,7 +184,7 @@ class ClickhouseService {
 
         ini_set('memory_limit', '4G');
 
-        $amends = \DB::connection('pgsql1')->table('tb_amending as a')
+        $amends = \DB::connection('mysql1')->table('tb_amending as a')
             ->select('a.id', 'r.id as id_region', 'd.id as id_district', 'o.id as id_org', 'm.id as id_mahalla', 'u.id as id_abonent',
                 'r.name_uz as region_name', 'd.name_uz as district_name', 'o.name as org_name', 'm.name as mahalla_name',
                 'u.id as abonent_id', 'u.kod as abonent_kod', 'u.name as abonent_name',
@@ -196,7 +196,7 @@ class ClickhouseService {
             ->join('districts as d', 'u.id_district', '=', 'd.id')
             ->join('organizations as o', 'u.id_org', '=', 'o.id')
             ->join('mahallas as m', 'm.id', '=', 'u.id_mahalla')
-            ->where(\DB::raw("a.created_at::date"), $date)
+            ->where(\DB::raw("DATE(a.created_at)"), $date)
             ->get();
         // to array with utf8 encoding
         if (!$amends || count($amends) == 0) {
@@ -248,7 +248,7 @@ class ClickhouseService {
 
         ini_set('memory_limit', '4G');
 
-        $abonent = \DB::connection('pgsql1')->table('cms_users')->where('id_org', $id_org)->where('id_cms_privileges', 4)->get();
+        $abonent = \DB::connection('mysql1')->table('cms_users')->where('id_org', $id_org)->where('id_cms_privileges', 4)->get();
         // to array with utf8 encoding
         if (!$abonent || count($abonent) == 0) {
             \Log::info('No data found for ORG_ID: ' . $id_org);
@@ -277,8 +277,8 @@ class ClickhouseService {
         ini_set('memory_limit', '4G');
 
         // MySQL brrgz dan shu sanadagi tb_amending yozuvlarini olish
-        $rows = \DB::connection('pgsql1')->table('tb_amending')
-            ->whereRaw("created_at::date = ?", [$date])
+        $rows = \DB::connection('mysql1')->table('tb_amending')
+            ->whereRaw("DATE(created_at) = ?", [$date])
             ->get();
 
         if (!$rows || count($rows) == 0) {
@@ -430,8 +430,8 @@ class ClickhouseService {
 
         ini_set('memory_limit', '4G');
 
-        $newUsers = \DB::connection('pgsql1')->table('cms_users')
-            ->whereRaw("created_at::date = ?", [$date])
+        $newUsers = \DB::connection('mysql1')->table('cms_users')
+            ->whereRaw("DATE(created_at) = ?", [$date])
             ->where('id_cms_privileges', 4)
             ->get();
 

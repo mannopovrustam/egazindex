@@ -10,8 +10,8 @@ use DB;
  * Har bir yozish amali shu yerdagi yordamchilardan o'tadi — shu sababli
  * `dry_run`, log, xato boshqaruvi va ULANISH tanlash bitta joyda.
  *
- * ULANISH: bu loyihada bir nechta baza bor (pgsql = indexator bazasi,
- * pgsql1 = asosiy egaz bazasi). Trigger o'z
+ * ULANISH: bu loyihada bir nechta baza bor (mysql = egaz_idxdb, mysql1 =
+ * asosiy egaz bazasi brrgz; pgsql / pgsql1 — PostgreSQL nusxalari). Trigger o'z
  * yon ta'sirlarini AYNAN qaysi bazada bajarayotgan bo'lsa, o'sha bazada
  * bajarishi shart — shuning uchun `TriggerBus` har bir chaqiruvdan oldin
  * ulanishni o'rnatib qo'yadi.

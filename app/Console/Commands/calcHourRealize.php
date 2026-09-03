@@ -75,7 +75,8 @@ class calcHourRealize extends Command {
             return \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $date)->format('Y-m-d');
         })->toArray();
 
-        DB::table('i_hour_realize')->truncate();
+        // DB::table('i_hour_realize')->truncate();
+        return 0;
 
         foreach ($days as $dt){
             $started = microtime(true);
@@ -117,12 +118,13 @@ class calcHourRealize extends Command {
 
     private function RecalculationAllDetail()
     {
+        return 0;
         $period = \Carbon\CarbonPeriod::create('2020-01-01', now()->subDay())->day();
         $days = collect($period)->map(function (\Carbon\Carbon $date) {
             return \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $date)->format('Y-m-d');
         })->toArray();
 
-        DB::table('i_hour_realize_detail')->truncate();
+        // DB::table('i_hour_realize_detail')->truncate();
 
         foreach ($days as $dt){
             Log::info($dt);
@@ -146,46 +148,46 @@ class calcHourRealize extends Command {
     {
         $price_gb = Constant::KG_BALLON*Constant::gotPrice($dt);
 
-        return DB::connection('pgsql1')->table('tb_requests_ballons as bal')
+        return DB::connection('mysql1')->table('tb_requests_ballons as bal')
             ->select('r.id as id_region', DB::raw("'$dt' as real_date"),
                 DB::raw('(select count(*) from organizations where id_region = r.id and orgtype_id in (2,3)) as org_qty'),
-                DB::raw("(select sum(accepted_qty) from tb_requests where dt_acception::date = '$dt' and id_raygas in (select id from organizations where id_region = r.id)) as req_qty"),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 6 then 1 else 0 end) as "qty_6"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 6 then 1 else 0 end)*'.$price_gb.') as "price_6"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 7 then 1 else 0 end) as "qty_7"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 7 then 1 else 0 end)*'.$price_gb.') as "price_7"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 8 then 1 else 0 end) as "qty_8"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 8 then 1 else 0 end)*'.$price_gb.') as "price_8"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 9 then 1 else 0 end) as "qty_9"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 9 then 1 else 0 end)*'.$price_gb.') as "price_9"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 10 then 1 else 0 end) as "qty_10"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 10 then 1 else 0 end)*'.$price_gb.') as "price_10"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 11 then 1 else 0 end) as "qty_11"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 11 then 1 else 0 end)*'.$price_gb.') as "price_11"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 12 then 1 else 0 end) as "qty_12"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 12 then 1 else 0 end)*'.$price_gb.') as "price_12"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 13 then 1 else 0 end) as "qty_13"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 13 then 1 else 0 end)*'.$price_gb.') as "price_13"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 14 then 1 else 0 end) as "qty_14"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 14 then 1 else 0 end)*'.$price_gb.') as "price_14"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 15 then 1 else 0 end) as "qty_15"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 15 then 1 else 0 end)*'.$price_gb.') as "price_15"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 16 then 1 else 0 end) as "qty_16"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 16 then 1 else 0 end)*'.$price_gb.') as "price_16"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 17 then 1 else 0 end) as "qty_17"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 17 then 1 else 0 end)*'.$price_gb.') as "price_17"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 18 then 1 else 0 end) as "qty_18"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 18 then 1 else 0 end)*'.$price_gb.') as "price_18"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 19 then 1 else 0 end) as "qty_19"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 19 then 1 else 0 end)*'.$price_gb.') as "price_19"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 20 then 1 else 0 end) as "qty_20"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 20 then 1 else 0 end)*'.$price_gb.') as "price_20"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 21 then 1 else 0 end) as "qty_21"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 21 then 1 else 0 end)*'.$price_gb.') as "price_21"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 22 then 1 else 0 end) as "qty_22"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 22 then 1 else 0 end)*'.$price_gb.') as "price_22"'),
-                DB::raw('sum(case when bal.passed_at is not null then 1 else 0 end) as "pass_qty"'),
-                DB::raw('sum((case when bal.passed_at is not null then 1 else 0 end) * '.$price_gb.') as "pass_price"'))
+                DB::raw("(select sum(accepted_qty) from tb_requests where date(dt_acception) = '$dt' and id_raygas in (select id from organizations where id_region = r.id)) as req_qty"),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 6, 1, 0)) as `qty_6`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 6, 1, 0)*'.$price_gb.') as `price_6`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 7, 1, 0)) as `qty_7`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 7, 1, 0)*'.$price_gb.') as `price_7`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 8, 1, 0)) as `qty_8`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 8, 1, 0)*'.$price_gb.') as `price_8`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 9, 1, 0)) as `qty_9`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 9, 1, 0)*'.$price_gb.') as `price_9`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 10, 1, 0)) as `qty_10`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 10, 1, 0)*'.$price_gb.') as `price_10`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 11, 1, 0)) as `qty_11`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 11, 1, 0)*'.$price_gb.') as `price_11`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 12, 1, 0)) as `qty_12`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 12, 1, 0)*'.$price_gb.') as `price_12`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 13, 1, 0)) as `qty_13`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 13, 1, 0)*'.$price_gb.') as `price_13`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 14, 1, 0)) as `qty_14`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 14, 1, 0)*'.$price_gb.') as `price_14`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 15, 1, 0)) as `qty_15`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 15, 1, 0)*'.$price_gb.') as `price_15`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 16, 1, 0)) as `qty_16`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 16, 1, 0)*'.$price_gb.') as `price_16`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 17, 1, 0)) as `qty_17`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 17, 1, 0)*'.$price_gb.') as `price_17`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 18, 1, 0)) as `qty_18`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 18, 1, 0)*'.$price_gb.') as `price_18`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 19, 1, 0)) as `qty_19`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 19, 1, 0)*'.$price_gb.') as `price_19`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 20, 1, 0)) as `qty_20`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 20, 1, 0)*'.$price_gb.') as `price_20`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 21, 1, 0)) as `qty_21`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 21, 1, 0)*'.$price_gb.') as `price_21`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 22, 1, 0)) as `qty_22`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 22, 1, 0)*'.$price_gb.') as `price_22`'),
+                DB::raw('sum(if(bal.passed_at, 1, 0)) as `pass_qty`'),
+                DB::raw('sum(if(bal.passed_at, 1, 0) * '.$price_gb.') as `pass_price`'))
 
             ->join('tb_requests as req', function ($join){
                 $join->on('bal.id_request', '=', 'req.id');
@@ -200,42 +202,42 @@ class calcHourRealize extends Command {
     public function reportByDateDetail($dt)
     {
         $price_gb = Constant::KG_BALLON*Constant::gotPrice($dt);
-        return DB::connection('pgsql1')->table('tb_requests_ballons as bal')
+        return DB::connection('mysql1')->table('tb_requests_ballons as bal')
             ->select('r.id as id_region', 'o.id as id_org', 'o.name as org_name', 'bal.passed_by as inspector_id', 'u.name as inspector_name', DB::raw("'$dt' as real_date"),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 6 then 1 else 0 end) as "qty_6"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 6 then 1 else 0 end)*'.$price_gb.') as "price_6"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 7 then 1 else 0 end) as "qty_7"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 7 then 1 else 0 end)*'.$price_gb.') as "price_7"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 8 then 1 else 0 end) as "qty_8"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 8 then 1 else 0 end)*'.$price_gb.') as "price_8"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 9 then 1 else 0 end) as "qty_9"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 9 then 1 else 0 end)*'.$price_gb.') as "price_9"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 10 then 1 else 0 end) as "qty_10"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 10 then 1 else 0 end)*'.$price_gb.') as "price_10"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 11 then 1 else 0 end) as "qty_11"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 11 then 1 else 0 end)*'.$price_gb.') as "price_11"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 12 then 1 else 0 end) as "qty_12"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 12 then 1 else 0 end)*'.$price_gb.') as "price_12"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 13 then 1 else 0 end) as "qty_13"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 13 then 1 else 0 end)*'.$price_gb.') as "price_13"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 14 then 1 else 0 end) as "qty_14"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 14 then 1 else 0 end)*'.$price_gb.') as "price_14"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 15 then 1 else 0 end) as "qty_15"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 15 then 1 else 0 end)*'.$price_gb.') as "price_15"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 16 then 1 else 0 end) as "qty_16"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 16 then 1 else 0 end)*'.$price_gb.') as "price_16"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 17 then 1 else 0 end) as "qty_17"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 17 then 1 else 0 end)*'.$price_gb.') as "price_17"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 18 then 1 else 0 end) as "qty_18"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 18 then 1 else 0 end)*'.$price_gb.') as "price_18"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 19 then 1 else 0 end) as "qty_19"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 19 then 1 else 0 end)*'.$price_gb.') as "price_19"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 20 then 1 else 0 end) as "qty_20"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 20 then 1 else 0 end)*'.$price_gb.') as "price_20"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 21 then 1 else 0 end) as "qty_21"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 21 then 1 else 0 end)*'.$price_gb.') as "price_21"'),
-                DB::raw('sum(case when EXTRACT(HOUR FROM bal.passed_at) = 22 then 1 else 0 end) as "qty_22"'),
-                DB::raw('sum((case when EXTRACT(HOUR FROM bal.passed_at) = 22 then 1 else 0 end)*'.$price_gb.') as "price_22"'))
+                DB::raw('sum(if(HOUR(bal.passed_at) = 6, 1, 0)) as `qty_6`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 6, 1, 0)*'.$price_gb.') as `price_6`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 7, 1, 0)) as `qty_7`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 7, 1, 0)*'.$price_gb.') as `price_7`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 8, 1, 0)) as `qty_8`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 8, 1, 0)*'.$price_gb.') as `price_8`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 9, 1, 0)) as `qty_9`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 9, 1, 0)*'.$price_gb.') as `price_9`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 10, 1, 0)) as `qty_10`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 10, 1, 0)*'.$price_gb.') as `price_10`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 11, 1, 0)) as `qty_11`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 11, 1, 0)*'.$price_gb.') as `price_11`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 12, 1, 0)) as `qty_12`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 12, 1, 0)*'.$price_gb.') as `price_12`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 13, 1, 0)) as `qty_13`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 13, 1, 0)*'.$price_gb.') as `price_13`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 14, 1, 0)) as `qty_14`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 14, 1, 0)*'.$price_gb.') as `price_14`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 15, 1, 0)) as `qty_15`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 15, 1, 0)*'.$price_gb.') as `price_15`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 16, 1, 0)) as `qty_16`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 16, 1, 0)*'.$price_gb.') as `price_16`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 17, 1, 0)) as `qty_17`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 17, 1, 0)*'.$price_gb.') as `price_17`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 18, 1, 0)) as `qty_18`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 18, 1, 0)*'.$price_gb.') as `price_18`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 19, 1, 0)) as `qty_19`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 19, 1, 0)*'.$price_gb.') as `price_19`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 20, 1, 0)) as `qty_20`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 20, 1, 0)*'.$price_gb.') as `price_20`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 21, 1, 0)) as `qty_21`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 21, 1, 0)*'.$price_gb.') as `price_21`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 22, 1, 0)) as `qty_22`'),
+                DB::raw('sum(if(HOUR(bal.passed_at) = 22, 1, 0)*'.$price_gb.') as `price_22`'))
             ->join('tb_requests as req', function ($join){
                 $join->on('bal.id_request', '=', 'req.id');
             })

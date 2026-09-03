@@ -97,7 +97,7 @@ pg:sync [table] [--connection=] [--full] [--id=] [--key=] [--chunk=] [--no-creat
 pg:check [--connection=] [--table=]
 triggers:status [--conflicts] [--connection=]
 haqdorlik {arg}
-real:ballons-mah [--dt=] [--region=] [--source=pgsql1] [--chunk=500] [--dry-run]
+real:ballons-mah [--dt=] [--region=] [--source=mysql1] [--chunk=500] [--dry-run]
 fill:recipientin [--connection=mysql] [--refresh] [--id-abonent=] [--pinfl=] [--limit=] [--chunk=] [--dry-run]
 triggers:irl-detail [--date=] [--from=] [--to=] [--org=] [--append] [--dry-run] [--chunk=] [--connection=] [--force]
 ```
@@ -107,7 +107,7 @@ commitlaridan — ko'chirildi. Dialekt farqlari:
 
 | Komanda | egaz-indexator | egaz-index13 |
 |---|---|---|
-| `real:ballons-mah` | `--source=mysql1`, `datediff(...)`, `` `1to30` `` | `--source=pgsql1`, ulanish drayveriga qarab `datediff` yoki `(DATE 'x' - rdt)`, alias `"1to30"` |
+| `real:ballons-mah` | `--source=mysql1`, `datediff(...)`, `` `1to30` `` | `--source=mysql1` (indexator dagidek; `--source=pgsql1` ham mumkin), ulanish drayveriga qarab `datediff` yoki `(DATE 'x' - rdt)` |
 | `triggers:irl-detail` | `IFNULL`, `information_schema.TRIGGERS`+`DATABASE()` | `COALESCE`, PG da `information_schema.triggers`+`current_schema()`; ish davomida `php_connections` vaqtincha olib turiladi |
 | `fill:recipientin` | — | o'zgarishsiz (so'rov quruvchisi, dialektga bog'liq emas) |
 
@@ -136,7 +136,7 @@ hammasini bajardi).
 | `mysql_egaz` | `DB_DATABASE2` @ `DB_HOST1` | |
 | `clickhouse` | `CLICKHOUSE_*` | Laravel drayveri emas — sozlama saqlagich |
 | `pgsql` | `PGIDX_*` | **indexator PostgreSQL** (egaz_idxpost) |
-| `pgsql1` | `PGPUSH_*` | **egaz-push asosiy PG**; `pg:sync` standart holda shunga yozadi |
+| `pgsql1` | `PGPUSH_*` | **egaz-push asosiy PG** — `mysql1` ning nusxasi; `pg:sync --target=pgsql1` |
 
 `pgsql` / `pgsql1` bloklarida `search_path` (L9+ nomi) va `schema` (L5.5 nomi)
 **ikkalasi ham** bor: birinchisini framework o'qiydi, ikkinchisini `pg:check`
@@ -167,13 +167,16 @@ egaz-push bazasi bilan ishlash uchun `--target=pgsql1` bering.
 > darhol keyin PostgreSQL nusxasiga ko'chiriladi (`id` + `created_at`
 > qo'shilib). Ya'ni standart ulanish yana **`mysql`**.
 >
-> | | Yozish | Nusxa | Manba o'qish |
+> | | Yozish | Nusxa (faqat `DUAL_WRITE=true`) | Manba o'qish |
 > |---|---|---|---|
 > | O'z bazasi (i_*, idx_*, tb_*) | `mysql` | `pgsql` | `mysql` |
-> | Asosiy egaz bazasi | `mysql1` | `pgsql1` | **`pgsql1`** (o'zgarmadi) |
+> | Asosiy egaz bazasi | `mysql1` | `pgsql1` | **`mysql1`** (egaz-indexator dagidek) |
 >
-> Batafsil: [`docs/dual-write.md`](dual-write.md). Pastdagi dialekt jadvali
-> baribir kuchda — manba o'qish (`pgsql1`) va nusxa yozish PG da bajariladi.
+> 2026-09-03: manba o'qish ham `mysql1` ga (MySQL dialektiga) QAYTARILDI —
+> `DUAL_WRITE=false` bo'lganda ilova aynan `egaz-indexator` kabi ishlashi
+> shart. Batafsil: [`docs/dual-write.md`](dual-write.md). Pastdagi dialekt
+> jadvali endi FAQAT nusxa tomonga (trigger qatlami, `pg:sync`) tegishli —
+> ilova kodidagi manba so'rovlari yana MySQL dialektida.
 
 `app/` dagi butun kod PostgreSQL ga o'tkazilgan edi. Ulanish nomlari (o'sha
 bosqichda):

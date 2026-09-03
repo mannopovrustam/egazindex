@@ -31,6 +31,19 @@ class Realizations implements ShouldQueue {
     public function handle() {
         if (env('JOBS_DISABLE', false)) return;
         if (!isset($this->data['hash']) || !isset($this->data['method']) || !isset($this->data['action']) || !isset($this->data['rb'])) {
+            // Antispoof KADRI (frame) haqidagi yozuv — realizatsiya EMAS.
+            // egaz tomonidagi `failed_jobs_manual` qayta yuborish mexanizmi
+            // (PaymentData::retryFailedManual) xato manzil tanlab, bunday
+            // yozuvni shu yerga jo'natgan edi. Xato manba tuzatilgan, lekin
+            // jadvalda yotgan eski qatorlar baribir kelib qolishi mumkin:
+            // exception otib navbatni band qilmaymiz va failed_jobs ni
+            // shishirmaymiz — rasmni inobatga olmasdan o'tkazib yuboramiz,
+            // keyingi realizatsiyalar indekslanishda davom etadi.
+            if (isset($this->data['id_request_ballon_id']) || isset($this->data['file'])) {
+//                \Log::warning('Queue realizations: frame (rasm) payload — indekslanmaydi, o`tkazib yuborildi; rb='
+//                    . (isset($this->data['id_request_ballon_id']) ? $this->data['id_request_ballon_id'] : '?'));
+                return;
+            }
             //\Log::debug($this->data['rb']);
             throw new Exception('Wrong input parameters!', 103);
         }

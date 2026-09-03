@@ -45,7 +45,7 @@ class AbonDepositCalc extends Command {
         ];
         $affected = 0;
 
-        $q = \DB::select("with cte as (select (select sum(amount) from tmp_db.tb_gas_debit where id_abonent = $id and st='0') as inp, (select sum(price) from tmp_db.tb_gas_credit where id_abonent = $id) as outp, (select sum(saldo) from tmp_db.hgt_saldo where id_abonent = $id) as saldo) select COALESCE(inp, 0) as i, COALESCE(outp, 0) as o, COALESCE(saldo, 0) as s, COALESCE(inp, 0) - COALESCE(outp, 0) + COALESCE(saldo, 0) as balance from cte");
+        $q = \DB::select("with cte as (select (select sum(amount) from tmp_db.tb_gas_debit where id_abonent = $id and st='0') as inp, (select sum(price) from tmp_db.tb_gas_credit where id_abonent = $id) as outp, (select sum(saldo) from tmp_db.hgt_saldo where id_abonent = $id) as saldo) select IFNULL(inp, 0) as i, IFNULL(outp, 0) as o, IFNULL(saldo, 0) as s, IFNULL(inp, 0) - IFNULL(outp, 0) + IFNULL(saldo, 0) as balance from cte");
 
         if ($q && $q[0]) {
             if ($deposit != $q[0]->balance) $affected = 1;

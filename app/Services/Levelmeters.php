@@ -49,13 +49,38 @@ class Levelmeters {
             if (isset($siteMap[$key])) $site = $siteMap[$key];
         }
 
+        // `items` MAJBURIY. Ilgari tekshirilmasdan foreach ga berilardi va
+        // qurilma bo'sh/boshqacha so'rov yuborsa "Undefined index: items"
+        // bilan 500 qaytardi — jo'natuvchi esa nima noto'g'ri ekanini bilmasdi.
+        if (!isset($data['items']) || !is_array($data['items']) || count($data['items']) === 0) {
+            \Log::warning('Levelmeters: [items] yo`q yoki bo`sh; payload=' . json_encode($data));
+            return response()->json(['api_status' => 0, 'api_message' => '[items] parameter missed or empty!', 'api_http' => 400], 400);
+        }
+
+        // `ts` bo'lmasa yoki tanib bo'lmasa — server vaqti. strtotime(null)
+        // PHP 8 da xato beradi, false esa 1970 yilni yozib qo'yardi.
+        $ts = isset($data['ts']) ? strtotime((string) $data['ts']) : false;
+        if ($ts === false) {
+            if (isset($data['ts'])) \Log::warning('Levelmeters: [ts] o`qib bo`lmadi (' . json_encode($data['ts']) . '), server vaqti ishlatildi');
+            $ts = time();
+        }
+        $tsFmt = date('Y-m-d H:i:s', $ts);
+
         foreach ($data['items'] as $item) {
+            // Nuqsonli element butun so'rovni yiqitmaydi: uni o'tkazib yuborib,
+            // qolganini yozamiz — bitta buzuq o'lchov tufayli boshqa qurilmalar
+            // ma'lumoti yo'qolmasin.
+            if (!is_array($item) || !isset($item['device_address']) || !isset($item['param_id']) || !isset($item['value'])) {
+                \Log::warning('Levelmeters: nuqsonli element o`tkazib yuborildi: ' . json_encode($item));
+                continue;
+            }
+
             $detail = [
                 'id_org' => $site ?? 307,
                 'device_address' => $item['device_address'],
                 'param_id' => $item['param_id'],
                 'value' => $item['value'],
-                'ts' => date('Y-m-d H:i:s', strtotime($data['ts']))
+                'ts' => $tsFmt
             ];
             try {
                 \DB::table('tb_levelmeters')->insert($detail);

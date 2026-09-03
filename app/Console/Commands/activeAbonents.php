@@ -48,12 +48,12 @@ class activeAbonents extends Command
         $start = microtime(true);
         $this->info('Start time: ' . date('H:i:s'));
 
-        $organizations = \DB::connection('pgsql1')->table('organizations')->select('id', 'name')->where('orgtype_id', 4)->get();
+        $organizations = \DB::connection('mysql1')->table('organizations')->select('id', 'name')->where('orgtype_id', 4)->get();
 
         $ALL_ORGS = 0;
         foreach ($organizations as $orgs){
             $ALL_ORGS++;
-            $users = \DB::connection('pgsql1')->table('cms_users')->select('kod', 'name', 'id_mahalla', 'created_at', 'status')->where('id_cms_privileges',4)->where('id_org', $orgs->id)->get();
+            $users = \DB::connection('mysql1')->table('cms_users')->select('kod', 'name', 'id_mahalla', 'created_at', 'status')->where('id_cms_privileges',4)->where('id_org', $orgs->id)->get();
             $this->info('Organization: ' . $orgs->name . ' has ' . count($users) . ' abonents.');
             $ALL_ABONENTS = 0;
             foreach ($users as $user) {

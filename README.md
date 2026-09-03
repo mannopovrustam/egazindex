@@ -26,8 +26,11 @@ tashqi xulq-atvori o'zgarmagan porti.
 * **Ilova IKKI BAZAGA yozadi:** asosiysi MySQL (`egaz_idxdb` / `brrgz` —
   `egaz-indexator` dagidek), keyin aynan shu qator PostgreSQL nusxasiga
   (`egaz_idxpost` / `egaz_push`) `id` va `created_at` bilan yoziladi.
-  Manba jadvallar (cms_users, organizations, tb_gas_debit) `pgsql1` dan
-  o'qiladi. Holatni `php artisan dual:status` ko'rsatadi.
+  O'qish ham `egaz-indexator` dagidek: manba jadvallar (cms_users,
+  organizations, tb_gas_debit ...) `mysql1` dan, o'z jadvallari `mysql` dan.
+  **`DUAL_WRITE=false`** → PostgreSQL ga umuman tegilmaydi, ilova aynan
+  `egaz-indexator` kabi ishlaydi; **`DUAL_WRITE=true`** → yagona farq: har bir
+  yozuv PostgreSQL nusxasiga ham ketadi. Holatni `php artisan dual:status` ko'rsatadi.
   Xom SQL bilan yozish nusxalanmaydi — `App\Services\DualWrite\CounterUpsert`
   yoki so'rov quruvchisidan foydalaning ([`docs/dual-write.md`](docs/dual-write.md)).
 

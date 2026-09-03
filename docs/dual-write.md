@@ -17,9 +17,18 @@ keyin **aynan shu ma'lumotni PostgreSQL nusxasiga** ko'chiradi — nusxaga
 MySQL — **birlamchi manba (source of truth)**. PostgreSQL — nusxa.
 
 **O'qish o'zgarmadi:** manba jadvallar (cms_users, organizations,
-tb_gas_debit, tb_requests\*, tb_amending …) oldingidek `pgsql1` dan
-o'qiladi. Loyihaning o'z jadvallari (`i_*`, `idx_*`, `tb_*`) esa standart
-ulanishdan, ya'ni MySQL dan — chunki yozish ham o'sha yerga ketadi.
+tb_gas_debit, tb_requests\*, tb_amending …) `egaz-indexator` dagidek
+`mysql1` (brrgz MySQL) dan, MySQL dialektida o'qiladi. Loyihaning o'z
+jadvallari (`i_*`, `idx_*`, `tb_*`) esa standart ulanishdan, ya'ni MySQL dan —
+chunki yozish ham o'sha yerga ketadi. Ilova PostgreSQL ulanishlariga o'qish
+uchun hech qachon murojaat qilmaydi.
+
+**Ikki rejim:**
+
+| `DUAL_WRITE` | Xatti-harakat |
+|---|---|
+| `false` | PostgreSQL ga umuman tegilmaydi — ilova **aynan `egaz-indexator`** kabi ishlaydi |
+| `true`  | yagona farq: har bir yozuv PostgreSQL nusxasiga ham ketadi |
 
 Sozlamalar: [`config/dual_write.php`](../config/dual_write.php)
 

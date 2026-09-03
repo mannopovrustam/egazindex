@@ -141,7 +141,7 @@ class TriggerFlags
     }
 
     /**
-     * Triggerli jadvallar yotgan ulanish nomi (null = standart `pgsql`).
+     * Triggerli jadvallar yotgan ulanish nomi (null = standart `mysql`).
      */
     public static function connection()
     {

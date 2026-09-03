@@ -46,7 +46,7 @@ class calcTransanctions extends Command {
 
         \DB::table('idx_dayli_by_orgs')->where('dt', $dt)->delete();
         if ($forceDetails) \DB::table('idx_dayli_by_orgs_details')->where('dt', $dt)->delete();
-        $rows = \DB::connection('pgsql1')->table('tb_gas_debit')->where('dt_pay', $dt)->get();
+        $rows = \DB::connection('mysql1')->table('tb_gas_debit')->where('dt_pay', $dt)->get();
         if (!$rows || count($rows) <= 0) {
             $i = 'Recalc command no data found for ' . $dt;
             \Log::info($i); $this->info($i);
@@ -71,7 +71,7 @@ class calcTransanctions extends Command {
                 }
 
                 if ($forceDetails) {
-                    $user = \DB::connection('pgsql1')->table('cms_users as u')->leftjoin('mahallas as m', 'm.id', '=', 'u.id_mahalla')->select(\DB::raw("COALESCE(u.name,u.mahalla) as mahalla"), 'u.name', 'u.kod', 'u.psp', 'u.deposit', 'u.address', 'u.mobile', 'u.id_mahalla')->where('u.id', $tr->id_abonent)->first();
+                    $user = \DB::connection('mysql1')->table('cms_users as u')->leftjoin('mahallas as m', 'm.id', '=', 'u.id_mahalla')->select(\DB::raw("IFNULL(u.name,u.mahalla) as mahalla"), 'u.name', 'u.kod', 'u.psp', 'u.deposit', 'u.address', 'u.mobile', 'u.id_mahalla')->where('u.id', $tr->id_abonent)->first();
 
                     if (!$user || !$user->kod) {
                         $i = 'Recalc command: Unkowen AbonentID!';
@@ -165,7 +165,7 @@ class calcTransanctions extends Command {
         \DB::table('idx_dayli_by_orgs')->where('dt', $dt)->delete();
         \DB::table('idx_dayli_by_orgs_details')->where('dt', $dt)->delete();
         // L13: select() xom SATR kutadi — Expression obyektida __toString() yo'q.
-        $rows = \DB::connection('pgsql1')->select("select * from tb_gas_debit where dt_pay='$dt' ");
+        $rows = \DB::connection('mysql1')->select("select * from tb_gas_debit where dt_pay='$dt' ");
         if (!$rows || count($rows) <= 0) {
             $i = 'Recalc command no data found for ' . $dt;
             \Log::info($i); $this->info($i);
@@ -191,10 +191,10 @@ class calcTransanctions extends Command {
                 $errors++;
                 continue;
             }
-            $user = \DB::connection('pgsql1')->table('cms_users as u')->leftjoin('mahallas as m', 'm.id','=','u.id_mahalla')
-                ->select(\DB::raw("COALESCE(m.name,u.mahalla) as mahalla,u.name,u.kod,u.psp,u.deposit,u.address,u.mobile,u.id_mahalla"))
+            $user = \DB::connection('mysql1')->table('cms_users as u')->leftjoin('mahallas as m', 'm.id','=','u.id_mahalla')
+                ->select(\DB::raw("IFNULL(m.name,u.mahalla) as mahalla,u.name,u.kod,u.psp,u.deposit,u.address,u.mobile,u.id_mahalla"))
                 ->where('u.id',$tr->id_abonent)->first();
-           /*$user = \DB::select(\DB::raw("select COALESCE(u.name,u.mahalla) as mahalla,u.name,u.kod,u.psp,u.deposit,u.address,u.mobile,u.id_mahalla from brrgz.cms_users as u left join brrgz.mahallas as m on m.id=u.id_mahalla u.id = $tr->id_abonent limit 1"));*/
+           /*$user = \DB::select(\DB::raw("select IFNULL(u.name,u.mahalla) as mahalla,u.name,u.kod,u.psp,u.deposit,u.address,u.mobile,u.id_mahalla from brrgz.cms_users as u left join brrgz.mahallas as m on m.id=u.id_mahalla u.id = $tr->id_abonent limit 1"));*/
 
             if (!$user || !$user->kod) {
                 $i = 'Recalc command: Unkowen AbonentID!';
@@ -270,7 +270,7 @@ class calcTransanctions extends Command {
     }
 
     private function RecalculateDeposit() {
-        $rows = \DB::connection('pgsql1')->select("select id_org,SUM(COALESCE(deposit,0.00)) as y from cms_users where id_cms_privileges=4 group by id_org");
+        $rows = \DB::connection('mysql1')->select("select id_org,SUM(IFNULL(deposit,0.00)) as y from cms_users where id_cms_privileges=4 group by id_org");
         if (!$rows || count($rows) <=0) {
             $i = 'RecalucalationDeposit command no data found!';
             \Log::info($i); $this->info($i);

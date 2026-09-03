@@ -20,7 +20,7 @@ use Log;
  *   php artisan export:monthly 2026-07
  *   php artisan export:monthly 2026-07 --source=money_details --column=dt
  *   php artisan export:monthly 2026-07 --source=vw_money_details_AN --source=vw_money_details_BU
- *   php artisan export:monthly 2026-07 --connection=pgsql1 --path=storage/app/exports
+ *   php artisan export:monthly 2026-07 --connection=mysql1 --path=storage/app/exports
  */
 class ExportMonthly extends Command {
 
@@ -28,7 +28,7 @@ class ExportMonthly extends Command {
         {month : Oy YYYY-MM formatida (masalan 2026-07)}
         {--source=* : Aniq jadval/view nomi (bir nechta marta berilishi mumkin). Bosh bolsa pastdagi toplamlardan foydalaniladi}
         {--set=money_details : Oldindan belgilangan manba toplami nomi (--source berilmaganda ishlaydi)}
-        {--connection=pgsql1 : Manba DB ulanishi (egaz asosiy DB = pgsql1)}
+        {--connection=mysql1 : Manba DB ulanishi (egaz asosiy DB = mysql1)}
         {--column=dt : Oylik filtr qollanadigan sana ustuni}
         {--path= : Chiqish papkasi (bosh bolsa storage/app/exports)}
         {--delimiter=, : CSV ajratuvchi belgisi}';

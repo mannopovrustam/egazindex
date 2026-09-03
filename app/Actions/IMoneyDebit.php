@@ -49,7 +49,7 @@ class IMoneyDebit
                     continue;
                 }
 
-                $org = DB::connection('pgsql1')->table('organizations')->select('id', 'id_region')->where('id', $tr->payee_id)->first();
+                $org = DB::connection('mysql1')->table('organizations')->select('id', 'id_region')->where('id', $tr->payee_id)->first();
                 if (!$org || !isset($org->id) || !$org->id_region) {
                     $errors++;
                     DB::rollback();
@@ -57,7 +57,7 @@ class IMoneyDebit
                     continue;
                 }
 
-                $user = DB::connection('pgsql1')->table('cms_users as u')->select(DB::raw("u.id,u.name,u.kod,u.psp,u.deposit,u.address,u.mobile,u.id_mahalla"))->where('u.kod',$tr->sys_tid)->first();
+                $user = DB::connection('mysql1')->table('cms_users as u')->select(DB::raw("u.id,u.name,u.kod,u.psp,u.deposit,u.address,u.mobile,u.id_mahalla"))->where('u.kod',$tr->sys_tid)->first();
 
                 if (!$user || !isset($user->id) || !$user->kod) {
                     DB::rollback();

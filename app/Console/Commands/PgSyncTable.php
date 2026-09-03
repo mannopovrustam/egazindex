@@ -124,7 +124,6 @@ class PgSyncTable extends Command
         // ── indexator agregatlari (o'suvchi id li) ──
         'i_balance',
         'i_face_id_detail',
-        'i_face_id_payload',
         'i_face_id_recipients',
         'i_face_id_relations',
         // ── intake jadvallar ──
@@ -164,7 +163,6 @@ class PgSyncTable extends Command
         'i_deposit_orgs',
         'i_hour_realize',
         'i_rekvizits',
-        'idx_real_dayli_by_orgs_fact',
     );
 
     /**
@@ -186,12 +184,8 @@ class PgSyncTable extends Command
     private static $DATE_TABLES = array(
         'i_real_details',
         'i_money_details',
-        'idx_real_dayli_by_orgs_details',
-        'idx_dayli_by_orgs_details',
         'i_real_orgs',
         'i_money_orgs',
-        'idx_dayli_by_orgs',
-        'idx_real_dayli_by_orgs',
         'i_hour_realize_detail:real_date',
     );
 
@@ -200,7 +194,7 @@ class PgSyncTable extends Command
      * Birinchi mos kelgani (va sana/vaqt tipida bo'lgani) olinadi.
      */
     private static $DATE_COLUMN_CANDIDATES = array(
-        'dt', 'real_date', 'real_at', 'paid_at', 'created_dt',
+        'dt', 'real_date', 'real_at', 'paid_at', 'created_dt','dt_creation',
         'event_date', 'created_at', 'dtm', 'ts', 'vaqt',
     );
 

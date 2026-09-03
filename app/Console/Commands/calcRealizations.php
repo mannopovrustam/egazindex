@@ -55,7 +55,7 @@ class calcRealizations extends Command {
         DB::table('i_real_details')->where('dt', $dt)->delete();
         DB::table('i_real_orgs')->where('dt', $dt)->delete();
 
-        $rows = DB::connection('pgsql1')->table('tb_requests as r')
+        $rows = DB::connection('mysql1')->table('tb_requests as r')
             ->join('tb_requests_ballons as rb','r.id','=','rb.id_request')
             ->where('rb.dt', $dt)->whereNotNull('rb.passed_at')
             ->select('r.id_raygas','r.numb','rb.price', 'rb.id_abonent','rb.passed_by','rb.passed_at','rb.location_lon','rb.location_lat','rb.id_ballon','rb.dt','rb.id')->get();
@@ -81,7 +81,7 @@ class calcRealizations extends Command {
             $dt = ($q && $q->dt ? $q->dt : '1900-01-01');
             DB::table('i_real_orgs')->where('dt','>=', $dt)->delete();
             DB::table('i_real_details')->where('dt','>=', $dt)->delete();
-            $data = DB::connection('pgsql1')->table('tb_requests_ballons as rb')->where('rb.dt','>=', $dt)->groupBy('rb.dt')->select('rb.dt')->get();
+            $data = DB::connection('mysql1')->table('tb_requests_ballons as rb')->where('rb.dt','>=', $dt)->groupBy('rb.dt')->select('rb.dt')->get();
         }
         else {
             // egaz-indexator 76f4a4e "recalc realizatiosn": to'liq qayta qurish
@@ -89,7 +89,7 @@ class calcRealizations extends Command {
             // TRUNCATE qilib qaytadan yozardi — tasodifan chaqirilsa hisobotlar
             // soatlab yo'q bo'lib turardi. Kerak bo'lsa qatorlarni qaytaring va
             // qo'lda, nazorat ostida yurgizing.
-            // $data = DB::connection('pgsql1')->table('tb_requests_ballons as rb')->whereNotNull('rb.passed_at')->groupBy('rb.dt')->select('rb.dt')->get();
+            // $data = DB::connection('mysql1')->table('tb_requests_ballons as rb')->whereNotNull('rb.passed_at')->groupBy('rb.dt')->select('rb.dt')->get();
             // DB::table('i_real_orgs')->truncate();
             // DB::table('i_real_details')->truncate();
             // DB::table('i_real_failed')->truncate();
@@ -112,7 +112,7 @@ class calcRealizations extends Command {
             $i = 'Realization command launched for: ' . $row->dt;
             $this->info($i);
 
-            $rows = DB::connection('pgsql1')->table('tb_requests as r')
+            $rows = DB::connection('mysql1')->table('tb_requests as r')
                 ->join('tb_requests_ballons as rb','r.id','=','rb.id_request')
                 ->where('rb.dt', $row->dt)->whereNotNull('rb.passed_at')
                 ->select('r.id_raygas','r.numb','rb.price', 'rb.id_abonent','rb.passed_by','rb.passed_at','rb.location_lon','rb.location_lat','rb.id_ballon','rb.dt','rb.id')->distinct()->get();

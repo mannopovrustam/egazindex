@@ -17,7 +17,7 @@ class IReal
             $user = null;
             $INSP = null;
             $rb = json_decode(json_encode($rb, JSON_UNESCAPED_UNICODE));
-            $cms_user = \DB::connection('pgsql1')->table('cms_users as u')
+            $cms_user = \DB::connection('mysql1')->table('cms_users as u')
                 ->join('organizations as o', 'o.id', '=', 'u.id_org')
                 ->select('u.name', 'u.kod', 'u.address', 'u.mobile', 'u.id_mahalla', 'u.id_org', 'o.name as org_name')->where('u.id', $rb->id_abonent)->first();
             if (!$cms_user) {
@@ -41,7 +41,7 @@ class IReal
             $user['id_mahalla'] = $cms_user->id_mahalla ?? 8740;
             $user['abonent_phone'] = $cms_user->mobile;
 
-            $inspector = \DB::connection('pgsql1')->table('cms_users as u')->select('u.name', 'u.kod')->where('u.id', $rb->passed_by)->first();
+            $inspector = \DB::connection('mysql1')->table('cms_users as u')->select('u.name', 'u.kod')->where('u.id', $rb->passed_by)->first();
             if (!$inspector) {
                 $INSP['inspector_kod'] = '01001000001';
                 $INSP['inspector_name'] = 'НЕИЗВЕСТНО!';
@@ -49,7 +49,7 @@ class IReal
                 $INSP['inspector_kod'] = $inspector->kod;
                 $INSP['inspector_name'] = $inspector->name;
             }
-            $ballon = \DB::connection('pgsql1')->table('tb_balons')->select('kod')->where('id', $rb->id_ballon)->first();
+            $ballon = \DB::connection('mysql1')->table('tb_balons')->select('kod')->where('id', $rb->id_ballon)->first();
             if (!$ballon) {
                 //$i = 'Realization command: BallonID: ' . $rb->id_ballon . ' no found!';
                 \DB::table('i_real_failed')->insert([

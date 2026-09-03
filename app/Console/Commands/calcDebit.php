@@ -33,7 +33,7 @@ class calcDebit extends Command {
                     return;
                 }
                 DB::table('i_money_orgs')->whereBetween('dt', [$start, $end])->delete();
-                // DB trigger `i_money_details_orgs` (AFTER DELETE) — bazada tanasi izohda (no-op)
+                // DB trigger `i_money_details_orgs` (AFTER DELETE) â€” bazada tanasi izohda (no-op)
                 \App\Services\DbTriggers\TriggerBus::delete('i_money_details', function ($q) use ($start, $end) { $q->whereBetween('dt', [$start, $end]); });
 
                 for ($i = 0; $i <= $days; $i++) {
@@ -76,7 +76,7 @@ class calcDebit extends Command {
 
     private function RecalculationAll() {
         // L13: select() xom SATR kutadi â€” Expression obyektida __toString() yo'q.
-        $allDateTransactions = DB::connection('pgsql1')->select("select dt_pay, count(*) as qty from tb_gas_debit group by dt_pay order by dt_pay");
+        $allDateTransactions = DB::connection('mysql1')->select("select dt_pay, count(*) as qty from tb_gas_debit group by dt_pay order by dt_pay");
         $i = 'Recalucalation debit started, found rows: ' . count($allDateTransactions);
         $this->info($i); Log::debug($i);
         DB::table('i_money_orgs')->truncate();
@@ -84,7 +84,7 @@ class calcDebit extends Command {
         DB::table('i_money_failed')->truncate();
 
         foreach ($allDateTransactions as $allDateTransaction) {
-            $gasDebits = DB::connection('pgsql1')->select("select * from tb_gas_debit where dt_pay = '$allDateTransaction->dt_pay'");
+            $gasDebits = DB::connection('mysql1')->select("select * from tb_gas_debit where dt_pay = '$allDateTransaction->dt_pay'");
             $started = microtime(true);
             (new IMoneyDebit())->handle($gasDebits, $allDateTransaction->dt_pay);
             $elapsed =  (microtime(true) - $started);
@@ -99,10 +99,10 @@ class calcDebit extends Command {
         Log::info($i); $this->info($i);
         if ($forceDelete) {
             DB::table('i_money_orgs')->where('dt', $dt)->delete();
-            // DB trigger `i_money_details_orgs` (AFTER DELETE) — bazada tanasi izohda (no-op)
+            // DB trigger `i_money_details_orgs` (AFTER DELETE) â€” bazada tanasi izohda (no-op)
             \App\Services\DbTriggers\TriggerBus::delete('i_money_details', ['dt' => $dt]);
         }
-        $gasDebits = DB::connection('pgsql1')->table('tb_gas_debit')->where('dt_pay', $dt)->get();
+        $gasDebits = DB::connection('mysql1')->table('tb_gas_debit')->where('dt_pay', $dt)->get();
         if (!$gasDebits || count($gasDebits) <= 0) {
             $i = 'Recalc command no data found for ' . $dt;
             Log::info($i); $this->info($i);
@@ -117,15 +117,15 @@ class calcDebit extends Command {
         $allDateTransactionsMaxDate = DB::select("select MAX(dt) as dt from i_money_details");
 
         DB::table('i_money_orgs')->where('dt', $allDateTransactionsMaxDate[0]->dt)->delete();
-        // DB trigger `i_money_details_orgs` (AFTER DELETE) — bazada tanasi izohda (no-op)
+        // DB trigger `i_money_details_orgs` (AFTER DELETE) â€” bazada tanasi izohda (no-op)
         \App\Services\DbTriggers\TriggerBus::delete('i_money_details', ['dt' => $allDateTransactionsMaxDate[0]->dt]);
         $maxDate = $allDateTransactionsMaxDate != null ? "where dt_pay >= '{$allDateTransactionsMaxDate[0]->dt}'" : "";
-        $allDateTransactions = DB::connection('pgsql1')->select("select dt_pay, count(*) as qty from tb_gas_debit $maxDate group by dt_pay order by dt_pay");
+        $allDateTransactions = DB::connection('mysql1')->select("select dt_pay, count(*) as qty from tb_gas_debit $maxDate group by dt_pay order by dt_pay");
         $i = 'Recalucalation debit started, found rows: ' . count($allDateTransactions);
         $this->info($i); Log::debug($i);
 
         foreach ($allDateTransactions as $allDateTransaction) {
-            $gasDebits = DB::connection('pgsql1')->select("select * from tb_gas_debit where dt_pay = '$allDateTransaction->dt_pay'");
+            $gasDebits = DB::connection('mysql1')->select("select * from tb_gas_debit where dt_pay = '$allDateTransaction->dt_pay'");
             $started = microtime(true);
             (new IMoneyDebit())->handle($gasDebits, $allDateTransaction->dt_pay);
             $elapsed =  (microtime(true) - $started);
