@@ -194,6 +194,13 @@ return [
             'integration_logs', 'organizations',
             'tb_factory_integration', 'tb_factory_signature_logs',
             'tb_gas_dispensers', 'tb_levelmeters', 'tb_scales_logs',
+            // GnpCamera.php:46 — ro'yxatda yo'q edi, lekin ilova unga YOZADI.
+            'tb_gnp_camera_logs',
+            // fill:recipientin (a_user_relations.recipientin_abonent ni UPDATE qiladi)
+            'a_user_relations',
+            // real:ballons-mah (DELETE + INSERT); PG jadvali:
+            // database/sql/i_real_ballons_mahallas.pg.sql
+            'i_real_ballons_mahallas',
         ],
         'mysql1' => [
             'tb_factory_signatures',

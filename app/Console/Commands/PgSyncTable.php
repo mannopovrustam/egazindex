@@ -11,11 +11,18 @@ use Illuminate\Support\Facades\DB;
  * egaz loyihasidagi `pg:sync` ning shu loyihaga moslashtirilgan ko'rinishi.
  * Manba ulanishi --connection orqali tanlanadi (indexator'da bir nechta MySQL
  * ulanishi bor: mysql = egaz_idxdb, mysql1 = egaz asosiy brrgz, mysql_egaz).
+ *
  * Qabul qiluvchi PostgreSQL ulanishi --target orqali: `pgsql` (STANDART —
  * ilovaning o'z bazasi, i_* / idx_* agregatlari shu yerda o'qiladi) yoki
  * `pgsql1` (egaz-push asosiy bazasi).
  *
- * UCH REJIM BOR:
+ * REJIM O'ZI TANLANADI (jadval nomi berilganda):
+ *
+ *     Manbada `id` (--key) ustuni BOR      →  A) increment
+ *     `id` YO'Q, lekin sana ustuni bor     →  D) sanadan davom ettirish
+ *     ikkalasi ham yo'q                    →  --full talab qilinadi
+ *
+ * TO'RT REJIM BOR:
  *
  * A) Jadval nomi BERILGAN — `php artisan pg:sync <jadval>`  (qayta yozish)
  *   0. Jadval PostgreSQL da bo'lmasa — MySQL strukturasidan DDL yasalib yaratiladi
@@ -35,20 +42,46 @@ use Illuminate\Support\Facades\DB;
  *   jadvallari (i_money_*, i_real_*, idx_*) kalitsiz yoki qo'shma kalitli
  *   bo'lgani uchun shu rejim ular uchun mo'ljallangan. Bitta tranzaksiyada.
  *
+ * D) Jadval nomi BERILGAN, lekin `id` YO'Q — sanadan davom ettirish
+ *   `i_real_details`, `i_money_details` kabi jadvallarda o'suvchi kalit yo'q
+ *   (kalit qo'shma: yy+dt+ballon_kod+abonent_kod), hajmi esa o'nlab GB —
+ *   ya'ni na "id > MAX(id)", na `--full` yaraydi. Ular sana bo'yicha ko'chadi:
+ *
+ *   1. Sana ustuni topiladi (--date-column, yoki dt / real_date / … avtomatik)
+ *   2. PostgreSQL dagi MAX(sana) olinadi
+ *        --date berilgan → o'sha sana
+ *        --days=N        → MAX(sana) dan N kun orqaga chekinadi
+ *   3. PostgreSQL dan o'sha SANA VA UNDAN KEYINGI qaydlar O'CHIRILADI
+ *   4. MySQL dan aynan o'sha oyna qaytadan yoziladi
+ *
+ *   NEGA oxirgi sana ham o'chiriladi: sinxronizatsiya kun o'rtasida ishlagan
+ *   bo'lsa PG dagi eng katta sana CHALA bo'lishi mumkin. Uni butunlay
+ *   almashtirish yagona ishonchli yo'l. Amal IDEMPOTENT — necha marta
+ *   yurgizsangiz ham natija bir xil. Hammasi bitta tranzaksiyada.
+ *
+ *   ⚠ HIMOYA: manbada bu oynada qator bo'lmasa hech narsa o'chirilmaydi
+ *     (aks holda PG dagi oxirgi kun yo'q bo'lib ketardi).
+ *
  * C) Jadval nomi BERILMAGAN — `php artisan pg:sync`  (ro'yxat bo'yicha)
  *   1. $SYNC_TABLES — o'suvchi kalitli jadvallar, FAQAT QO'SHISH:
  *        PostgreSQL dagi MAX(kalit) topiladi, MySQL dan faqat undan KATTA
  *        kalitli qaydlar qo'shiladi. Hech narsa o'chirilmaydi.
- *   2. $FULL_TABLES — kalitsiz/qo'shma kalitli agregat jadvallar, HAR SAFAR
- *        TO'LIQ qayta yoziladi (B rejim bilan bir xil).
+ *   2. $DATE_TABLES — kalitsiz, sanali KATTA jadvallar: PostgreSQL dagi
+ *        MAX(sana) dan davom etadi (D rejim bilan bir xil).
+ *   3. $FULL_TABLES — kichik, kalitsiz agregatlar: HAR SAFAR TO'LIQ qayta
+ *        yoziladi (B rejim bilan bir xil).
  *   PostgreSQL da jadval bo'lmasa avval yaratiladi. Har bir jadval o'z
  *   tranzaksiyasida — biri yiqilsa qolganlari davom etaveradi.
  *
  * Misollar:
- *   php artisan pg:sync                                  # ikkala ro'yxat bo'yicha
- *   php artisan pg:sync i_balance                        # bitta jadval, MAX(id) dan
+ *   php artisan pg:sync                                  # uchala ro'yxat bo'yicha
+ *   php artisan pg:sync i_balance                        # id bor → increment
  *   php artisan pg:sync i_balance --id=1000 --force
- *   php artisan pg:sync i_money_orgs --full              # kalitsiz agregatni to'liq
+ *   php artisan pg:sync i_real_details                   # id yo'q → dt dan davom etadi
+ *   php artisan pg:sync i_money_details --days=3         # oxirgi 3 kunni qayta yozadi
+ *   php artisan pg:sync i_real_details --date=2019-01-01 --date-to=2019-12-31   # backfill
+ *   php artisan pg:sync i_hour_realize_detail --date-column=real_date
+ *   php artisan pg:sync i_rekvizits --full               # kichik agregatni to'liq
  *   php artisan pg:sync tb_scales_logs --connection=mysql1
  *   php artisan pg:sync i_balance --target=pgsql1        # egaz-push bazasiga
  *   php artisan pg:sync --dry-run                        # faqat rejani ko'rsatadi
@@ -65,7 +98,11 @@ class PgSyncTable extends Command
         {--target=pgsql : Qabul qiluvchi PostgreSQL ulanishi (pgsql = ilovaning o\'z bazasi, STANDART; pgsql1 = egaz-push)}
         {--full : Jadvalni PostgreSQL da to\'liq bo\'shatib qaytadan yozadi; o\'suvchi kalit talab qilinmaydi}
         {--id= : Shu ID dan boshlab ko\'chiriladi (berilmasa PostgreSQL dagi MAX(id)); ro\'yxat rejimida ishlamaydi}
-        {--key=id : Birlamchi kalit ustuni}
+        {--key=id : O\'suvchi kalit ustuni. Shu ustun MANBADA bo\'lsa — increment rejimi}
+        {--date-column= : Sana ustuni. Berilmasa avtomatik topiladi (dt, real_date, ...). Kalit yo\'q jadvallar shu ustun bo\'yicha ko\'chadi}
+        {--date= : Shu sanadan boshlab (berilmasa PostgreSQL dagi MAX(sana))}
+        {--date-to= : Shu sanagacha (backfill ni yil-yil bo\'lish uchun)}
+        {--days=0 : PostgreSQL dagi MAX(sana) dan shuncha kun ORQAGA chekinib boshlanadi}
         {--chunk=500 : Bir marta o\'qiladigan qatorlar soni}
         {--no-create : Jadval PostgreSQL da bo\'lmasa yaratmaydi, xato beradi}
         {--no-index : Jadval yaratilganda indekslar ko\'chirilmaydi}
@@ -125,13 +162,46 @@ class PgSyncTable extends Command
     private static $FULL_TABLES = array(
         'i_abonent_orgs',
         'i_deposit_orgs',
-        'i_real_orgs',
-        'i_money_orgs',
         'i_hour_realize',
         'i_rekvizits',
+        'idx_real_dayli_by_orgs_fact',
+    );
+
+    /**
+     * Jadval nomi berilmaganda SANA bo'yicha davom ettiriladigan jadvallar.
+     *
+     * Bular o'suvchi kalitsiz, LEKIN sanali (dt) katta jadvallar: ularni har
+     * safar to'liq qayta yozish qimmat, "id > MAX(id)" esa mumkin emas.
+     * Shuning uchun PostgreSQL dagi MAX(sana) topiladi, o'sha SANA butunlay
+     * o'chiriladi va MySQL dan o'sha sanadan boshlab qaytadan yoziladi.
+     *
+     * NEGA oxirgi sana ham o'chiriladi: sinxronizatsiya kun o'rtasida ishlagan
+     * bo'lsa, PG dagi eng katta sana CHALA bo'lishi mumkin. Uni butunlay
+     * almashtirish yagona ishonchli yo'l.
+     *
+     * Yozilishi:
+     *     'i_real_details'           — sana ustuni avtomatik topiladi
+     *     'i_hour_realize_detail:real_date' — ustun nomi aniq berilgan
+     */
+    private static $DATE_TABLES = array(
+        'i_real_details',
+        'i_money_details',
+        'idx_real_dayli_by_orgs_details',
+        'idx_dayli_by_orgs_details',
+        'i_real_orgs',
+        'i_money_orgs',
         'idx_dayli_by_orgs',
         'idx_real_dayli_by_orgs',
-        'idx_real_dayli_by_orgs_fact',
+        'i_hour_realize_detail:real_date',
+    );
+
+    /**
+     * Sana ustuni avtomatik topilganda ko'riladigan nomlar — shu tartibda.
+     * Birinchi mos kelgani (va sana/vaqt tipida bo'lgani) olinadi.
+     */
+    private static $DATE_COLUMN_CANDIDATES = array(
+        'dt', 'real_date', 'real_at', 'paid_at', 'created_dt',
+        'event_date', 'created_at', 'dtm', 'ts', 'vaqt',
     );
 
     /** PostgreSQL bitta so'rovda qabul qiladigan bog'lanish (placeholder) chegarasi. */
@@ -267,9 +337,31 @@ class PgSyncTable extends Command
             $this->error('Ikkala bazada ham mos keladigan ustun topilmadi.');
             return 1;
         }
-        if (! $full && ! in_array($key, $cols, true)) {
-            $this->error('"' . $key . '" ustuni ikkala bazada ham mavjud emas.');
-            return 1;
+        // ── Rejimni aniqlash ──────────────────────────────────────────────
+        // O'suvchi kalit MANBADA (va nusxada) bor  → increment
+        // Kalit yo'q, lekin sana ustuni bor        → sana bo'yicha davom ettirish
+        // Ikkalasi ham yo'q                        → --full talab qilinadi
+        $dateCol = null;
+        if (! $full) {
+            $hasKey = in_array($key, $cols, true);
+
+            if (! $hasKey) {
+                $dateCol = $this->resolveDateColumn($myStruct, $cols);
+
+                if ($dateCol === null) {
+                    $this->error('"' . $key . '" ustuni ikkala bazada ham mavjud emas, '
+                        . 'sana ustuni ham topilmadi.');
+                    $this->line('  Sana ustunini o\'zingiz ko\'rsating:  --date-column=<ustun>');
+                    $this->line('  Yoki jadvalni to\'liq almashtiring:   --full');
+                    return 1;
+                }
+            } elseif ($this->option('date-column') !== null && $this->option('date-column') !== '') {
+                // Kalit bor, lekin foydalanuvchi ataylab sana rejimini so'ragan.
+                $dateCol = $this->resolveDateColumn($myStruct, $cols);
+                if ($dateCol === null) {
+                    return 1;
+                }
+            }
         }
 
         $onlyMy = array_values(array_diff($myCols, array_keys($pgTypes)));
@@ -284,9 +376,72 @@ class PgSyncTable extends Command
         // NOT NULL ustunlar — konvertatsiya NULL bergan joyda xato chiqmasligi uchun
         $notNull = $this->pgNotNullColumns($dst, $table);
 
-        return $full
-            ? $this->runFullOne($src, $dst, $table, $myStruct, $cols, $pgTypes, $notNull, $chunk, $isDry)
-            : $this->runKeyedOne($src, $dst, $table, $key, $cols, $pgTypes, $notNull, $chunk, $isDry);
+        if ($full) {
+            return $this->runFullOne($src, $dst, $table, $myStruct, $cols, $pgTypes, $notNull, $chunk, $isDry);
+        }
+        if ($dateCol !== null) {
+            return $this->runDateOne($src, $dst, $table, $dateCol, $myStruct, $cols, $pgTypes, $notNull, $chunk, $isDry);
+        }
+
+        return $this->runKeyedOne($src, $dst, $table, $key, $cols, $pgTypes, $notNull, $chunk, $isDry);
+    }
+
+    /**
+     * Ishlatiladigan sana ustunini aniqlaydi.
+     *
+     * --date-column berilgan bo'lsa — o'sha (ikkala bazada bor-yo'qligi
+     * tekshiriladi). Berilmagan bo'lsa $DATE_COLUMN_CANDIDATES bo'yicha
+     * birinchi mos keladigan SANA/VAQT tipidagi ustun olinadi.
+     *
+     * @return string|null  topilmasa null
+     */
+    private function resolveDateColumn(array $myStruct, array $cols)
+    {
+        $given = $this->option('date-column');
+
+        if ($given !== null && trim($given) !== '') {
+            $given = trim($given);
+
+            if (! $this->validIdent($given)) {
+                $this->error('Sana ustuni nomi noto\'g\'ri: ' . $given);
+                return null;
+            }
+            if (! in_array($given, $cols, true)) {
+                $this->error('"' . $given . '" ustuni ikkala bazada ham mavjud emas.');
+                return null;
+            }
+            return $given;
+        }
+
+        return $this->resolveDateColumnQuiet($myStruct, $cols);
+    }
+
+    /**
+     * Sana ustunini FAQAT $DATE_COLUMN_CANDIDATES bo'yicha topadi — hech narsa
+     * chop etmaydi va --date-column ni hisobga olmaydi.
+     *
+     * Ro'yxat rejimida shu ishlatiladi: --date-column bir jadval uchun
+     * beriladi, uni hamma jadvalga qo'llash noto'g'ri bo'lardi.
+     *
+     * @return string|null
+     */
+    private function resolveDateColumnQuiet(array $myStruct, array $cols)
+    {
+        foreach (self::$DATE_COLUMN_CANDIDATES as $cand) {
+            if (! in_array($cand, $cols, true)) {
+                continue;
+            }
+            if (! isset($myStruct['columns'][$cand])) {
+                continue;
+            }
+
+            $type = strtolower($myStruct['columns'][$cand]['DATA_TYPE']);
+            if (in_array($type, array('date', 'datetime', 'timestamp'), true)) {
+                return $cand;
+            }
+        }
+
+        return null;
     }
 
     /** A rejim — boshlang'ich kalitdan qayta yozish. */
@@ -403,6 +558,254 @@ class PgSyncTable extends Command
         return 0;
     }
 
+    /**
+     * D rejim — SANA bo'yicha davom ettirish (o'suvchi kalit yo'q jadvallar).
+     *
+     * 1. PostgreSQL dagi MAX(sana) topiladi.
+     * 2. O'sha sana (va --days berilgan bo'lsa undan oldingi kunlar ham)
+     *    PostgreSQL dan BUTUNLAY o'chiriladi — u chala bo'lishi mumkin.
+     * 3. MySQL dan o'sha sanadan boshlab qaytadan yoziladi.
+     *
+     * Hammasi bitta tranzaksiyada: xato bo'lsa o'chirilgan qatorlar qaytadi.
+     */
+    private function runDateOne($src, $dst, $table, $dateCol, array $myStruct, array $cols, array $pgTypes, array $notNull, $chunk, $isDry)
+    {
+        $bounds = $this->dateBounds($dst, $table, $dateCol, $myStruct);
+        if ($bounds === null) {
+            return 1;
+        }
+
+        $srcCount = (int) $this->dateScope($src->table($table), $dateCol, $bounds)->count();
+        $dstCount = (int) $this->dateScope($dst->table($table), $dateCol, $bounds)->count();
+
+        $order = $this->orderColumns($myStruct, $cols);
+
+        $this->line('');
+        $this->info('Manba         : ' . $this->srcName);
+        $this->info('Jadval        : ' . $table . '   (sana bo\'yicha davom ettirish)');
+        $this->info('Sana ustuni   : ' . $dateCol
+            . ($this->option('date-column') ? '  [buyruq qatoridan]' : '  [avtomatik topildi]'));
+        $this->info('Boshlanish    : ' . ($bounds['from'] === null ? '(hammasi)' : $bounds['from'])
+            . '  [' . $bounds['source'] . ']');
+        if ($bounds['to'] !== null) {
+            $this->info('Tugash        : ' . $bounds['to']);
+        }
+        $this->info('Tartib        : ' . (empty($order) ? '(kalit yo\'q → ' . $dateCol . ')' : implode(', ', $order)));
+        $this->info('Ustunlar      : ' . count($cols) . ' ta');
+        $this->info('MySQL dan     : ' . $srcCount . ' ta qayd o\'qiladi');
+        $this->info('PostgreSQL da : ' . $dstCount . ' ta qayd O\'CHIRILADI');
+
+        if ($bounds['from'] === null) {
+            $this->warn('PostgreSQL da bu jadval BO\'SH — hamma qayd ko\'chiriladi.');
+            $this->line('  Katta jadvalda buni yil-yil bo\'lib qiling:');
+            $this->line('      php artisan pg:sync ' . $table . ' --date=2019-01-01 --date-to=2019-12-31 --force');
+        }
+
+        if ($srcCount === 0) {
+            $this->line('');
+            if ($dstCount === 0) {
+                $this->info('Bu oynada ikkala bazada ham qator yo\'q — qiladigan ish yo\'q.');
+                return 0;
+            }
+            $this->error('TO\'XTATILDI: manbada bu oynada qator YO\'Q, PostgreSQL da esa '
+                . $dstCount . ' ta bor.');
+            $this->line('  Davom etilsa o\'sha ' . $dstCount . ' ta qayd O\'CHIB KETARDI.');
+            $this->line('  Sana ustuni to\'g\'ri tanlanganini tekshiring (--date-column) yoki');
+            $this->line('  haqiqatan o\'chirish kerak bo\'lsa: pg:sync ' . $table . ' --full');
+            return 1;
+        }
+        $this->line('');
+
+        if ($isDry) {
+            $this->comment('--dry-run: hech narsa o\'zgartirilmadi.');
+            return 0;
+        }
+        if (! $this->option('force') && ! $this->confirm('Davom etamizmi?', false)) {
+            $this->comment('Bekor qilindi.');
+            return 0;
+        }
+
+        $bar = $this->output->createProgressBar($srcCount);
+        $res = $this->dateTable($src, $dst, $table, $dateCol, $myStruct, $cols, $pgTypes, $notNull, $chunk, $bounds, $bar);
+        $bar->finish();
+        $this->line('');
+
+        if (! $res['ok']) {
+            $this->line('');
+            $this->error('XATO — hech narsa o\'zgarmadi (rollback): ' . $res['error']);
+            return 1;
+        }
+
+        $this->line('');
+        $this->info('O\'chirildi : ' . $res['deleted'] . ' ta');
+        $this->info('Yozildi    : ' . $res['written'] . ' ta');
+        $this->info('Sequence   : ' . $res['seq']);
+
+        return 0;
+    }
+
+    /**
+     * Sana oynasining chegaralarini hisoblaydi.
+     *
+     *   --date berilgan      → o'sha sanadan
+     *   berilmagan           → PostgreSQL dagi MAX(sana) dan (--days bilan orqaga surilgan)
+     *   PostgreSQL bo'sh     → from = null (hammasi)
+     *
+     * @return array|null  from, to, source  |  xato bo'lsa null
+     */
+    private function dateBounds($dst, $table, $dateCol, array $myStruct)
+    {
+        // Ustun sof sana (date) mi yoki vaqtli (datetime/timestamp) mi — yuqori
+        // chegara shunga qarab `<= to` yoki `< to + 1 kun` bo'ladi.
+        $temporal = isset($myStruct['columns'][$dateCol])
+            && in_array(strtolower($myStruct['columns'][$dateCol]['DATA_TYPE']),
+                        array('datetime', 'timestamp'), true);
+
+        $to = $this->option('date-to');
+        $to = ($to === null || trim($to) === '') ? null : trim($to);
+
+        if ($to !== null && ! $this->isDate($to)) {
+            $this->error('--date-to noto\'g\'ri formatda: ' . $to . ' (kutilgani YYYY-MM-DD)');
+            return null;
+        }
+
+        $given = $this->option('date');
+        if ($given !== null && trim($given) !== '') {
+            $given = trim($given);
+            if (! $this->isDate($given)) {
+                $this->error('--date noto\'g\'ri formatda: ' . $given . ' (kutilgani YYYY-MM-DD)');
+                return null;
+            }
+            if ($to !== null && $given > $to) {
+                $this->error('--date (' . $given . ') --date-to (' . $to . ') dan katta.');
+                return null;
+            }
+            return array('from' => $given, 'to' => $to, 'temporal' => $temporal, 'source' => 'buyruq qatoridan');
+        }
+
+        $row = $dst->selectOne('SELECT MAX(' . $this->q($dateCol) . ') AS m FROM ' . $this->q($table));
+        if ($row === null || $row->m === null) {
+            return array('from' => null, 'to' => $to, 'temporal' => $temporal, 'source' => 'PostgreSQL bo\'sh');
+        }
+
+        // MAX() timestamp qaytarishi mumkin — kun boshiga keltiramiz, chunki
+        // o'sha KUN butunlay qayta yoziladi.
+        $from = substr((string) $row->m, 0, 10);
+
+        $days = (int) $this->option('days');
+        if ($days > 0) {
+            $from   = date('Y-m-d', strtotime($from . ' -' . $days . ' days'));
+            $source = 'PostgreSQL dagi MAX(' . $dateCol . ') − ' . $days . ' kun';
+        } else {
+            $source = 'PostgreSQL dagi MAX(' . $dateCol . ')';
+        }
+
+        return array('from' => $from, 'to' => $to, 'temporal' => $temporal, 'source' => $source);
+    }
+
+    /**
+     * So'rovga sana oynasi shartini qo'shadi.
+     *
+     * Ustun timestamp/datetime bo'lsa yuqori chegara `< to + 1 kun` bo'ladi —
+     * aks holda `<= '2026-12-31'` o'sha kunning soatlarini tashlab ketardi.
+     */
+    private function dateScope($q, $dateCol, array $bounds)
+    {
+        if ($bounds['from'] !== null) {
+            $q->where($dateCol, '>=', $bounds['from']);
+        }
+        if ($bounds['to'] !== null) {
+            if (! empty($bounds['temporal'])) {
+                $q->where($dateCol, '<', date('Y-m-d', strtotime($bounds['to'] . ' +1 day')));
+            } else {
+                $q->where($dateCol, '<=', $bounds['to']);
+            }
+        }
+        return $q;
+    }
+
+    /**
+     * Sana oynasidagi qatorlarni PostgreSQL da almashtiradi: oynani o'chirib,
+     * MySQL dagi o'sha oynani qaytadan yozadi. Bitta tranzaksiya.
+     *
+     * @return array ok, written, deleted, seq, error
+     */
+    private function dateTable($src, $dst, $table, $dateCol, array $myStruct, array $cols, array $pgTypes, array $notNull, $chunk, array $bounds, $bar)
+    {
+        $order = $this->orderColumns($myStruct, $cols);
+        if (empty($order)) {
+            $order = array($dateCol);
+        }
+
+        $rowsPerInsert = $this->rowsPerInsert($chunk, count($cols));
+        $written       = 0;
+        $deleted       = 0;
+
+        $dst->beginTransaction();
+        try {
+            $deleted = $this->dateScope($dst->table($table), $dateCol, $bounds)->delete();
+
+            $offset = 0;
+            while (true) {
+                $q = $this->dateScope($src->table($table), $dateCol, $bounds)
+                    ->select($cols)->limit($chunk)->offset($offset);
+                foreach ($order as $oc) {
+                    $q->orderBy($oc);
+                }
+
+                $srcRows = $q->get();
+                $got     = count($srcRows);
+                if ($got === 0) {
+                    break;
+                }
+
+                $batch = array();
+                foreach ($srcRows as $r) {
+                    $batch[] = $this->convertRow((array) $r, $pgTypes, $notNull);
+
+                    if (count($batch) >= $rowsPerInsert) {
+                        $dst->table($table)->insert($batch);
+                        $written += count($batch);
+                        if ($bar !== null) {
+                            $bar->advance(count($batch));
+                        }
+                        $batch = array();
+                    }
+                }
+
+                if ($batch) {
+                    $dst->table($table)->insert($batch);
+                    $written += count($batch);
+                    if ($bar !== null) {
+                        $bar->advance(count($batch));
+                    }
+                }
+
+                $offset += $got;
+                if ($got < $chunk) {
+                    break;
+                }
+            }
+
+            $seq = $this->resetSequence($dst, $table, $order[0]);
+            $dst->commit();
+        } catch (\Exception $e) {
+            $dst->rollBack();
+            return array('ok' => false, 'written' => 0, 'deleted' => 0, 'seq' => '-', 'error' => $e->getMessage());
+        }
+
+        return array('ok' => true, 'written' => $written, 'deleted' => $deleted, 'seq' => $seq, 'error' => null);
+    }
+
+    /** YYYY-MM-DD ko'rinishidagi haqiqiy sanami. */
+    private function isDate($v)
+    {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) {
+            return false;
+        }
+        return $v === date('Y-m-d', strtotime($v));
+    }
+
     /** B rejim — jadvalni to'liq almashtirish (kalit shart emas). */
     private function runFullOne($src, $dst, $table, array $myStruct, array $cols, array $pgTypes, array $notNull, $chunk, $isDry)
     {
@@ -480,6 +883,15 @@ class PgSyncTable extends Command
                 'mode'  => 'append',
             );
         }
+        foreach (self::$DATE_TABLES as $entry) {
+            $parts   = explode(':', $entry, 2);
+            $items[] = array(
+                'table'   => trim($parts[0]),
+                'key'     => null,
+                'dateCol' => isset($parts[1]) && trim($parts[1]) !== '' ? trim($parts[1]) : null,
+                'mode'    => 'date',
+            );
+        }
         foreach (self::$FULL_TABLES as $entry) {
             $items[] = array(
                 'table' => trim($entry),
@@ -490,8 +902,8 @@ class PgSyncTable extends Command
 
         if (empty($items)) {
             $this->error('Jadval ro\'yxati bo\'sh.');
-            $this->line('  Ro\'yxatni ' . __CLASS__ . '::$SYNC_TABLES / ::$FULL_TABLES ga yozing '
-                . 'yoki jadval nomini bering:');
+            $this->line('  Ro\'yxatni ' . __CLASS__ . '::$SYNC_TABLES / ::$DATE_TABLES / ::$FULL_TABLES ga '
+                . 'yozing yoki jadval nomini bering:');
             $this->line('      php artisan pg:sync <jadval>');
             return 1;
         }
@@ -508,6 +920,7 @@ class PgSyncTable extends Command
         $this->line('');
         $this->comment('Manba: ' . $this->srcName . ' → ' . $this->dstName);
         $this->comment('Reja: ' . count(self::$SYNC_TABLES) . ' ta jadvalga yangi qaydlar qo\'shiladi, '
+            . count(self::$DATE_TABLES) . ' ta jadval oxirgi sanadan davom etadi, '
             . count(self::$FULL_TABLES) . ' ta jadval to\'liq qayta yoziladi.');
 
         $plan     = array();
@@ -517,9 +930,17 @@ class PgSyncTable extends Command
         foreach ($items as $item) {
             $p      = $this->planTable($src, $dst, $item);
             $plan[] = $p;
+            if ($p['mode'] === 'full') {
+                $by = 'to\'liq';
+            } elseif ($p['mode'] === 'date') {
+                $by = ($p['dateCol'] === null ? '?' : $p['dateCol']) . ' (sana)';
+            } else {
+                $by = $p['key'];
+            }
+
             $rows[] = array(
                 $p['table'],
-                $p['mode'] === 'full' ? 'to\'liq' : $p['key'],
+                $by,
                 $p['maxId'] === null ? '-' : $p['maxId'],
                 $p['new'] === null ? '-' : $p['new'],
                 $p['status'],
@@ -561,7 +982,11 @@ class PgSyncTable extends Command
                 $skipped++;
                 continue;
             }
-            if ($p['mode'] === 'append' && ! $p['create'] && (int) $p['new'] === 0) {
+            // Manbada bu oynada qator bo'lmasa — TEGMAYMIZ.
+            // Sana rejimida bu ayniqsa muhim: "0 ta yozish" o'chirishdan keyin
+            // PostgreSQL dagi oxirgi kunni YO'Q qilib qo'yardi.
+            if (($p['mode'] === 'append' || $p['mode'] === 'date')
+                && ! $p['create'] && (int) $p['new'] === 0) {
                 $this->line($prefix . 'yangilik yo\'q');
                 $done++;
                 continue;
@@ -578,7 +1003,7 @@ class PgSyncTable extends Command
             }
 
             $this->line($res['written'] . ' ta yozildi'
-                . ($p['mode'] === 'full' ? ' (' . $res['deleted'] . ' ta o\'chirildi)' : ''));
+                . ($p['mode'] === 'append' ? '' : ' (' . $res['deleted'] . ' ta o\'chirildi)'));
             $written += $res['written'];
             $done++;
         }
@@ -607,15 +1032,17 @@ class PgSyncTable extends Command
         $key   = $item['key'];
 
         $p = array(
-            'table'  => $table,
-            'key'    => $key,
-            'mode'   => $item['mode'],
-            'ok'     => false,
-            'create' => false,
-            'maxId'  => null,
-            'new'    => null,
-            'status' => '',
-            'struct' => null,
+            'table'   => $table,
+            'key'     => $key,
+            'mode'    => $item['mode'],
+            'dateCol' => isset($item['dateCol']) ? $item['dateCol'] : null,
+            'bounds'  => null,
+            'ok'      => false,
+            'create'  => false,
+            'maxId'   => null,
+            'new'     => null,
+            'status'  => '',
+            'struct'  => null,
         );
 
         if (! $this->validIdent($table)) {
@@ -656,6 +1083,45 @@ class PgSyncTable extends Command
             $p['ok']     = true;
             $p['new']    = (int) $src->table($table)->count();
             $p['status'] = 'to\'liq qayta yoziladi';
+            return $p;
+        }
+
+        // ── Sana rejimi: PG dagi MAX(sana) dan davom etadi ────────────────
+        if ($p['mode'] === 'date') {
+            $cols = array_values(array_intersect(array_keys($myStruct['columns']), array_keys($pgTypes)));
+
+            $dateCol = $p['dateCol'];
+            if ($dateCol === null) {
+                $dateCol = $this->resolveDateColumnQuiet($myStruct, $cols);
+            } elseif (! in_array($dateCol, $cols, true)) {
+                $p['status'] = '"' . $dateCol . '" ustuni ikkala bazada ham yo\'q';
+                return $p;
+            }
+            if ($dateCol === null) {
+                $p['status'] = 'sana ustuni topilmadi';
+                return $p;
+            }
+
+            $bounds = $this->dateBounds($dst, $table, $dateCol, $myStruct);
+            if ($bounds === null) {
+                $p['status'] = 'sana chegarasi noto\'g\'ri';
+                return $p;
+            }
+
+            $p['ok']      = true;
+            $p['dateCol'] = $dateCol;
+            $p['bounds']  = $bounds;
+            $p['maxId']   = $bounds['from'] === null ? null : $bounds['from'];
+            $p['new']     = (int) $this->dateScope($src->table($table), $dateCol, $bounds)->count();
+
+            if ($bounds['from'] === null) {
+                $p['status'] = 'PG bo\'sh → hammasi';
+            } elseif ($p['new'] > 0) {
+                $p['status'] = $bounds['from'] . ' dan qayta yoziladi';
+            } else {
+                $p['status'] = 'yangilik yo\'q';
+            }
+
             return $p;
         }
 
@@ -718,6 +1184,30 @@ class PgSyncTable extends Command
         if ($p['mode'] === 'full') {
             $order = $this->orderColumns($p['struct'], $cols);
             return $this->replaceTable($src, $dst, $table, $cols, $pgTypes, $notNull, $order, $chunk, null);
+        }
+
+        if ($p['mode'] === 'date') {
+            $dateCol = $p['dateCol'];
+            if ($dateCol === null) {
+                $dateCol = $this->resolveDateColumnQuiet($p['struct'], $cols);
+            }
+            if ($dateCol === null || ! in_array($dateCol, $cols, true)) {
+                $fail['error'] = 'sana ustuni topilmadi';
+                return $fail;
+            }
+
+            // Jadval hozirgina yaratilgan bo'lsa chegara reja paytida hisoblanmagan.
+            $bounds = $p['bounds'];
+            if ($bounds === null) {
+                $bounds = $this->dateBounds($dst, $table, $dateCol, $p['struct']);
+                if ($bounds === null) {
+                    $fail['error'] = 'sana chegarasi noto\'g\'ri';
+                    return $fail;
+                }
+            }
+
+            return $this->dateTable($src, $dst, $table, $dateCol, $p['struct'],
+                $cols, $pgTypes, $notNull, $chunk, $bounds, null);
         }
 
         $key = $p['key'];

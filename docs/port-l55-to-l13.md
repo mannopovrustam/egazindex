@@ -81,7 +81,7 @@ ikkinchi argument beradi, qolganlari bermaydi. Ataylab tegilmadi.
 
 ## 2. Artisan komandalar — 1:1 mos
 
-`app/Console/Commands` dagi 20 ta klass bir xil nom va signatura bilan
+`app/Console/Commands` dagi 23 ta klass bir xil nom va signatura bilan
 ro'yxatdan o'tadi (`php artisan list` bilan tekshirilgan):
 
 ```
@@ -97,7 +97,22 @@ pg:sync [table] [--connection=] [--full] [--id=] [--key=] [--chunk=] [--no-creat
 pg:check [--connection=] [--table=]
 triggers:status [--conflicts] [--connection=]
 haqdorlik {arg}
+real:ballons-mah [--dt=] [--region=] [--source=pgsql1] [--chunk=500] [--dry-run]
+fill:recipientin [--connection=mysql] [--refresh] [--id-abonent=] [--pinfl=] [--limit=] [--chunk=] [--dry-run]
+triggers:irl-detail [--date=] [--from=] [--to=] [--org=] [--append] [--dry-run] [--chunk=] [--connection=] [--force]
 ```
+
+Oxirgi uchtasi keyinroq — egaz-indexator ning `76f4a4e` va `21497f2`
+commitlaridan — ko'chirildi. Dialekt farqlari:
+
+| Komanda | egaz-indexator | egaz-index13 |
+|---|---|---|
+| `real:ballons-mah` | `--source=mysql1`, `datediff(...)`, `` `1to30` `` | `--source=pgsql1`, ulanish drayveriga qarab `datediff` yoki `(DATE 'x' - rdt)`, alias `"1to30"` |
+| `triggers:irl-detail` | `IFNULL`, `information_schema.TRIGGERS`+`DATABASE()` | `COALESCE`, PG da `information_schema.triggers`+`current_schema()`; ish davomida `php_connections` vaqtincha olib turiladi |
+| `fill:recipientin` | — | o'zgarishsiz (so'rov quruvchisi, dialektga bog'liq emas) |
+
+`real:ballons-mah` uchun PostgreSQL jadvali ham kerak:
+`database/sql/i_real_ballons_mahallas.pg.sql` (MySQL varianti yonida).
 
 L5.5 da `Console\Kernel::commands()` -> `$this->load(__DIR__.'/Commands')`
 qilardi; L13 da `Application::configure()` ichidagi `withCommands()` xuddi

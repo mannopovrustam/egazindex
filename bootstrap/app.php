@@ -61,14 +61,26 @@ return Application::configure(basePath: dirname(__DIR__))
         // butunlay almashtiriladi, ya'ni tarkib egaz-indexator dagidek AYNAN shu ikkitasi.
         $middleware->group('api', [
             'throttle:60,1',
-            'bindings',
+            // ⚠ `'bindings'` SATRI EMAS, SINF NOMI. Laravel 5.5 da bu alias
+            //   `Kernel::$routeMiddleware` da e'lon qilingan edi; Laravel 11+ da
+            //   esa bunday standart alias YO'Q — u faqat framework guruhlari
+            //   ichida sinf sifatida turadi. Satr qoldirilsa har bir `api`
+            //   so'rovi "Target class [bindings] does not exist" (500) bilan
+            //   yiqiladi. Bu ilgari sezilmagan: yagona `api` manzili
+            //   (`/api/user`) `auth:api` bilan himoyalangan va so'rov 401 da
+            //   to'xtab, shu middleware'gacha yetib bormasdi.
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
 
         // ── Kernel::$routeMiddleware['guest'] ────────────────────────────
         // Loyihaning o'z middleware'i: autentifikatsiyadan o'tganlarni `/home` ga
         // yuboradi (framework standarti boshqa manzilga yuboradi).
+        //
+        // `bindings` aliasi ham qayta tiklanadi: L5.5 da u mavjud edi va
+        // route larda `->middleware('bindings')` deb yozilishi mumkin.
         $middleware->alias([
-            'guest' => App\Http\Middleware\RedirectIfAuthenticated::class,
+            'guest'    => App\Http\Middleware\RedirectIfAuthenticated::class,
+            'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

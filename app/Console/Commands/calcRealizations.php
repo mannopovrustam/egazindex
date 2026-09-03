@@ -84,10 +84,21 @@ class calcRealizations extends Command {
             $data = DB::connection('pgsql1')->table('tb_requests_ballons as rb')->where('rb.dt','>=', $dt)->groupBy('rb.dt')->select('rb.dt')->get();
         }
         else {
-            $data = DB::connection('pgsql1')->table('tb_requests_ballons as rb')->whereNotNull('rb.passed_at')->groupBy('rb.dt')->select('rb.dt')->get();
-            DB::table('i_real_orgs')->truncate();
-            DB::table('i_real_details')->truncate();
-            DB::table('i_real_failed')->truncate();
+            // egaz-indexator 76f4a4e "recalc realizatiosn": to'liq qayta qurish
+            // ATAYLAB o'chirilgan. Bu shox butun i_real_details ni (143 mln qator)
+            // TRUNCATE qilib qaytadan yozardi — tasodifan chaqirilsa hisobotlar
+            // soatlab yo'q bo'lib turardi. Kerak bo'lsa qatorlarni qaytaring va
+            // qo'lda, nazorat ostida yurgizing.
+            // $data = DB::connection('pgsql1')->table('tb_requests_ballons as rb')->whereNotNull('rb.passed_at')->groupBy('rb.dt')->select('rb.dt')->get();
+            // DB::table('i_real_orgs')->truncate();
+            // DB::table('i_real_details')->truncate();
+            // DB::table('i_real_failed')->truncate();
+
+            // L5.5 da $data shu shoxda aniqlanmay qolardi va pastdagi `!$data`
+            // "undefined variable" (null) tufayli ishlardi. PHP 8.4 da bu
+            // ogohlantirish beradi — natija bir xil bo'lishi uchun aniq bo'sh
+            // to'plam qaytariladi: pastda "no data found" bilan chiqib ketadi.
+            $data = collect();
         }
 
         if (!$data || count($data) <= 0) {

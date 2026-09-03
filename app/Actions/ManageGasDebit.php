@@ -18,7 +18,10 @@ class ManageGasDebit
     public function handle()
     {
         \Log::info("___Start Failed transactions");
-        $this->transactions = DB::table('i_money_failed')->orderBy('id_tran')->take(500)->pluck('id_tran')->toArray();
+        // egaz-indexator fd5505a "fix i_money_failed": shu id dan oldingi eski
+        // xato tranzaksiyalar qayta urinilmaydi — ular brrgz da endi yo'q va
+        // har yurishda 500 tali blokni band qilib turardi.
+        $this->transactions = DB::table('i_money_failed')->where('id_tran','>',150503408)->orderBy('id_tran')->take(500)->pluck('id_tran')->toArray();
         DB::table('i_money_failed')->whereIn('id_tran', $this->transactions)->delete();
         $gasDebits = DB::connection('pgsql1')->table('tb_gas_debit')->whereIn('id', $this->transactions)->get();
 
