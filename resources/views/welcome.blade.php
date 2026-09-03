@@ -66,16 +66,16 @@
     </head>
     <body>
         <div class="flex-center position-ref full-height">
-            @if (Route::has('login'))
+            {{-- Auth sahifalari YOPIQ (routes/web.php ga qarang): `register`
+                 marshruti umuman yo'q, `login` esa faqat nom uchun mavjud va
+                 404 qaytaradi. Shuning uchun mehmonga havola ko'rsatilmaydi —
+                 aks holda route('register') "Route [register] not defined"
+                 xatosi bilan 500 beradi. --}}
+            @auth
                 <div class="top-right links">
-                    @auth
-                        <a href="{{ url('/home') }}">Home</a>
-                    @else
-                        <a href="{{ route('login') }}">Login</a>
-                        <a href="{{ route('register') }}">Register</a>
-                    @endauth
+                    <a href="{{ url('/home') }}">Home</a>
                 </div>
-            @endif
+            @endauth
 
             <div class="content">
                 <div class="title m-b-md">
