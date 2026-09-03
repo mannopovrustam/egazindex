@@ -33,11 +33,6 @@ Auth::routes();
 // Kontroller-satr sintaksisi L8 dan olib tashlangan; URL va route nomi o'zgarmadi.
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-Route::get('/test-bid/{id}', function($id){
-    /*$row = \DB::connection('pgsql1')->table('tb_gas_debit')->where('sys_bid', $id)->first();*/
-    dd($id);
-});
-
 Route::post('/datatransactions', function(){
     try {
         //$data = json_decode(json_encode(\Request::all()),true);
