@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Actions\IReal;
+use App\Actions\ManageGasReal;
 use Illuminate\Console\Command;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,15 @@ class calcRealizations extends Command {
                 Log::info('Retry realization data');
                 $this->info('Retry realization data');
                 $this->RealizationsAll(true);
+                return;
+            }
+
+            // `i_real_failed` dagi xato realizatsiyalarni qayta yurgizadi —
+            // calcDebit dagi `failed` shoxining aynan juftligi.
+            if ($this->argument('arg') == 'failed') {
+                Log::info('Recalculate failed realizations');
+                $this->info('Recalculate failed realizations');
+                (new ManageGasReal())->handle();
                 return;
             }
 
