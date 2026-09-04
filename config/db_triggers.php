@@ -89,10 +89,10 @@ return [
     | ⚠ MySQL dagi DB triggerlarni DROP qilsangiz — 'mysql' ni shu ro'yxatga
     |   QO'SHING, aks holda MySQL tomonda yon ta'sir bajarilmay qoladi.
     */
-    'php_connections' => [
+/*    'php_connections' => [
         'pgsql',
         'pgsql1',
-    ],
+    ],*/
 
     /*
     | Bajarilgan har bir PHP trigger amali logga yoziladi (DBTRG prefiksi).
