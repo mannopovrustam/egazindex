@@ -29,7 +29,7 @@ class Levelmeters {
             return response()->json(['api_status' => 0, 'api_message' => 'Authentication failed!', 'api_http' => 401],401);
         }
 
-        \Log::debug('Levelmeters: Request ' . json_encode($data));
+//        \Log::debug('Levelmeters: Request ' . json_encode($data));
         \DB::table('integration_logs')->insert(['module'=>'Levelmeters','payload'=>json_encode($data)]);
         //json_encode($data) => {"ts":"2026-03-12T12:35:31Z","items":[{"device_address":1,"param_id":"14","value":7.7052001953125},{"device_address":2,"param_id":"02","value":8.84375},{"device_address":3,"param_id":"04","value":21.81494140625},{"device_address":3,"param_id":"11","value":22.56982421875},{"device_address":4,"param_id":"04","value":43.541015625},{"device_address":4,"param_id":"11","value":45.0859375}]}
 
