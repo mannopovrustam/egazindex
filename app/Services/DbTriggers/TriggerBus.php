@@ -381,7 +381,10 @@ class TriggerBus
     private static function dispatch($table, $event, array $args, $connection)
     {
         $hs = self::handlers($table, $event, $connection);
-        if (!$hs) return;
+        if (!$hs) {
+            self::warnAllBlocked($table, $event, $connection);
+            return;
+        }
 
         $prev = BaseTrigger::useConnection(self::conn($connection));
         try {
@@ -391,6 +394,51 @@ class TriggerBus
         } finally {
             BaseTrigger::useConnection($prev);
         }
+    }
+
+    /** Ogohlantirish bir jarayonda bir marta: 'jadval|hodisa|ulanish' => true */
+    private static $warned = [];
+
+    /**
+     * Jadvalga trigger BOG'LANGAN, lekin HAMMASI o'chiq bo'lsa ogohlantiradi.
+     *
+     * NEGA KERAK. Bu holat MUTLAQO JIM kechadi: qator jadvalga yoziladi, xato
+     * otilmaydi, lekin yon ta'sir (agregat, depozit) bajarilmaydi. Bazadagi DB
+     * trigger tanasi kommentga olingan bo'lsa esa mantiq umuman YO'QOLADI —
+     * `i_real_orgs` shunday o'smay qolgan edi.
+     *
+     * TIPIK SABAB: uzoq yashaydigan jarayon (Apache/opcache, `queue:work`)
+     * ESKIRGAN configni ushlab turadi. `config/db_triggers.php` da
+     * `php_connections` o'zgartirilgan bo'lsa ham, o'sha jarayon eski ro'yxatni
+     * ko'radi va `mysql` ro'yxatda bo'lmagani uchun hech narsa yonmaydi.
+     * CLI da esa (masalan `triggers:irl-detail`) config yangi o'qiladi va
+     * hammasi ishlaydi — "komandada ishlaydi, saytda ishlamaydi" shundan.
+     *
+     * @return void
+     */
+    private static function warnAllBlocked($table, $event, $connection)
+    {
+        $events = self::eventsOf($table);
+        if (!isset($events[$event]) || !$events[$event]) return; // trigger yo'q — normal
+
+        // Asl bazada ham bo'sh bo'lgan triggerlar ogohlantirishga kirmaydi.
+        $noop = (array) config('db_triggers.noop', []);
+        $real = [];
+        foreach ($events[$event] as $h) {
+            if (!in_array($h[2], $noop, true)) $real[] = $h[2];
+        }
+        if (!$real) return;
+
+        $conn = TriggerFlags::resolveConnection(self::conn($connection));
+        $key  = $table . '|' . $event . '|' . $conn;
+        if (isset(self::$warned[$key])) return;
+        self::$warned[$key] = true;
+
+        \Log::warning(BaseTrigger::LOG_TAG . ' [' . $table . '] ' . $event . ' — ro`yxatdagi '
+            . count($real) . ' ta triggerning HAMMASI o`chiq (' . $conn . '): ' . implode(', ', $real)
+            . '. Qator yozildi, lekin YON TA`SIR BAJARILMADI.'
+            . ' Sabab odatda eskirgan config (Apache/opcache yoki queue:work qayta ishga tushirilmagan).'
+            . ' Tekshirish: php artisan triggers:probe ' . $table);
     }
 
     /**
