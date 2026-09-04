@@ -88,6 +88,10 @@ class DbTriggersStatus extends Command
             $table       = $parts[0];
 
             $inDb  = isset($dbTriggers[$triggerName]);
+            // Nomi bor, tanasi bo'sh trigger — bazada BOR, lekin HECH NARSA qilmaydi.
+            $hollow = $inDb && $this->isHollow($dbTriggers[$triggerName]);
+            // Amalda bazada ishlaydimi — quyidagi mantiq faqat shunga tayanadi.
+            $dbOn  = $inDb && !$hollow;
             $event = isset($meta[$name]) ? $meta[$name]['event'] : '—';
 
             $isNoop = in_array($name, (array) config('db_triggers.noop', []), true);
@@ -101,19 +105,23 @@ class DbTriggersStatus extends Command
                 // "hech qayerda yo'q" XATO EMAS.
                 $state = 'jadval bu bazada yo`q';
                 $bad = false;
-            } elseif (!$inDb && !$phpOn && $isNoop) {
+            } elseif (!$dbOn && !$phpOn && $isNoop) {
                 // Asl bazada ham bo'sh trigger edi — "hech qayerda yo'q" TO'G'RI holat.
                 $state = 'no-op (asl bazada ham bo`sh)';
                 $bad = false;
-            } elseif ($inDb && $phpOn) {
+            } elseif ($dbOn && $phpOn) {
                 $state = 'IKKI MARTA BAJARILADI';
                 $conflicts++;
                 $bad = true;
-            } elseif (!$inDb && !$phpOn) {
-                $state = 'HECH QAYERDA YO`Q';
+            } elseif (!$dbOn && !$phpOn) {
+                // Tanasi kommentga olingan trigger AYNAN shu yerga tushadi:
+                // `information_schema` da "bor", lekin mantiq yo'qolgan.
+                $state = $hollow
+                    ? 'TANASI BO`SH — MANTIQ YO`QOLGAN'
+                    : 'HECH QAYERDA YO`Q';
                 $gaps++;
                 $bad = true;
-            } elseif ($inDb) {
+            } elseif ($dbOn) {
                 $state = 'bazada (asl holat)';
                 $bad = false;
             } else {
@@ -127,7 +135,7 @@ class DbTriggersStatus extends Command
                 $triggerName,
                 $table,
                 $event,
-                !$this->dbReadable ? '?' : ($inDb ? 'bor' : '-'),
+                !$this->dbReadable ? '?' : ($hollow ? 'bor (bo`sh)' : ($inDb ? 'bor' : '-')),
                 $phpOn ? 'YOQIQ' : 'o`chiq',
                 $state,
             ];
@@ -199,7 +207,7 @@ class DbTriggersStatus extends Command
                 $short = $this->shortName($full);
                 $states[$full] = [
                     'php' => TriggerFlags::enabledOn($full, $conn),
-                    'db'  => isset($dbTriggers[$short]),
+                    'db'  => isset($dbTriggers[$short]) && !$this->isHollow($dbTriggers[$short]),
                 ];
             }
 
@@ -229,6 +237,38 @@ class DbTriggersStatus extends Command
     {
         $p = explode('.', $full, 2);
         return isset($p[1]) ? $p[1] : $full;
+    }
+
+    /**
+     * Trigger tanasi AMALDA bo'shmi — ya'ni faqat izoh va `begin`/`end` qolganmi.
+     *
+     * ENG XAVFLI HOLAT SHU: `information_schema` da trigger BOR bo'lib ko'rinadi,
+     * lekin hech narsa qilmaydi. DB triggerini PHP ga ko'chirayotganda tanasi
+     * kommentga olinib, `config/db_triggers.php` → `php_connections` ga o'sha
+     * ulanish QO'SHILMASA — mantiq na bazada, na PHP da qoladi.
+     *
+     * Aynan shu `tb_factory_integration_bi` da yuz bergan: hgt_filial_egaz
+     * (NOT NULL, DEFAULT'siz) to'ldirilmay, INSERT yiqilib, zavod yuk xatlari
+     * `integration_logs` da qolib ketgan edi.
+     *
+     * PG da `action_statement` doim `EXECUTE FUNCTION ...` — u yerda tana alohida
+     * funksiyada bo'ladi, shuning uchun bu tekshiruv amalda faqat MySQL ga tegishli.
+     *
+     * @param  object $row information_schema qatori
+     * @return bool
+     */
+    private function isHollow($row)
+    {
+        if (!isset($row->ACTION_STATEMENT)) return false;
+
+        $body = (string) $row->ACTION_STATEMENT;
+
+        $body = preg_replace('!/\*.*?\*/!s', ' ', $body);       // /* ... */
+        $body = preg_replace('/(?:--|#)[^\n]*/', ' ', $body);   // -- ...  va  # ...
+        $body = preg_replace('/\b(?:begin|end)\b/i', ' ', $body);
+        $body = preg_replace('/[\s;]+/', '', $body);
+
+        return $body === '';
     }
 
     /** "ulanish|jadval" => bool */
@@ -270,12 +310,15 @@ class DbTriggersStatus extends Command
                 // pastdagi `$out[nom] = $r` shu takrorni yig'ib yuboradi.
                 $rows = $c->select(
                     'SELECT trigger_name AS "TRIGGER_NAME", event_object_table AS "EVENT_OBJECT_TABLE", '
-                    . 'action_timing AS "ACTION_TIMING", event_manipulation AS "EVENT_MANIPULATION" '
+                    . 'action_timing AS "ACTION_TIMING", event_manipulation AS "EVENT_MANIPULATION", '
+                    . 'action_statement AS "ACTION_STATEMENT" '
                     . 'FROM information_schema.triggers WHERE trigger_schema = current_schema()'
                 );
             } else {
+                // ACTION_STATEMENT — trigger TANASI. Nomi bor-u tanasi kommentga
+                // olingan trigger ham "bor" bo'lib ko'rinadi, shuning uchun kerak.
                 $rows = $c->select(
-                    'SELECT TRIGGER_NAME, EVENT_OBJECT_TABLE, ACTION_TIMING, EVENT_MANIPULATION '
+                    'SELECT TRIGGER_NAME, EVENT_OBJECT_TABLE, ACTION_TIMING, EVENT_MANIPULATION, ACTION_STATEMENT '
                     . 'FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()'
                 );
             }

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Select-String -Path \"c:\\\\wamp64\\\\www\\\\egaz-main\\\\egazindex\\\\.env\" -Pattern \"^\\(LOG_|DUAL_WRITE|DB_|APP_ENV|APP_DEBUG|TRIGGER\\)\" | ForEach-Object { $_.Line })",
+      "PowerShell(Get-Service | Where-Object { $_.Name -match \"mysql|maria\" } | Select-Object Name, Status)",
+      "PowerShell($p = \"c:\\\\wamp64\\\\www\\\\egaz-main\\\\egaz-indexator\\\\app\\\\Services\\\\FactoryInvoice.php\"; if \\(Test-Path $p\\) { Get-Content $p } else { \"YO'Q: $p\" })"
+    ]
+  }
+}

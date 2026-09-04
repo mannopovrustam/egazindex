@@ -48,12 +48,36 @@ class FactoryInvoice
             return response()->json(['api_status' => 0, 'api_message' => 'Invalid hgt_filial!', 'api_http' => 401]);
         }
 
+        // 1C payloadga yangi maydon qo'shsa INSERT "Unknown column" bilan yiqilardi.
+        // Jadvalda yo'q kalitlarni tashlaymiz — `factory-invoice:replay` ham shunday.
+        $intCols = self::integrationColumns();
+        $extra   = array_diff(array_keys($data), $intCols);
+        if ($extra) {
+            \Log::warning('FactoryInvoice: payload da ortiqcha ustun (tashlandi): ' . implode(', ', $extra)
+                . ' numb=' . (isset($data['numb']) ? $data['numb'] : '?'));
+            $data = array_intersect_key($data, array_flip($intCols));
+        }
+
+        // `tb_factory_integration_bi` (BEFORE INSERT) DB triggeri hgt_filial va factory
+        // matnli kodlarini egaz tashkilot id lariga o'giradi (hgt_filial_egaz /
+        // factory_egaz). AMMO `hgt_filial_egaz` — NOT NULL va DEFAULT'siz: trigger
+        // bazada bo'lmasa INSERT "Field 'hgt_filial_egaz' doesn't have a default value"
+        // bilan yiqiladi, rollback esa tb_factory_integration ni ham, tb_fc_invoices ni
+        // ham bekor qiladi — payload `integration_logs` da YOLG'IZ qolib ketadi.
+        //
+        // Shuning uchun qiymatlarni O'ZIMIZ qo'yamiz (aynan `factory-invoice:replay`
+        // dagidek). DB triggeri joyida bo'lsa u shu qiymatlarning AYNAN o'zini qayta
+        // yozadi — xarita bir xil (TbFactoryIntegrationTriggers ↔ docs/idxdb_triggers.sql),
+        // ya'ni trigger bor-yo'qligidan qat'i nazar natija o'zgarmaydi.
+        if (in_array('hgt_filial_egaz', $intCols, true)) {
+            $data['hgt_filial_egaz'] = \App\Services\DbTriggers\TbFactoryIntegrationTriggers::egazFilial($data['hgt_filial']);
+        }
+        if (in_array('factory_egaz', $intCols, true)) {
+            $data['factory_egaz'] = \App\Services\DbTriggers\TbFactoryIntegrationTriggers::egazFactory($data['factory']);
+        }
+
         \DB::beginTransaction();
         try {
-            // DB trigger `tb_factory_integration_bi` (BEFORE INSERT) — hgt_filial va
-            // factory matnli kodlarini egaz tashkilot id lariga o'giradi
-            // (hgt_filial_egaz / factory_egaz). Quyidagi qator o'sha ustunlarni
-            // o'qiydi, shuning uchun BEFORE mantiq INSERT dan oldin bajarilishi shart.
             $fac_id = \App\Services\DbTriggers\TriggerBus::insertGetId('tb_factory_integration', $data);
             $fac_1c = \DB::table('tb_factory_integration')->where('id', $fac_id)->first();
             $inv_detail = [
@@ -112,6 +136,23 @@ class FactoryInvoice
 //        ClickhouseService::scales(json_encode($data));
 
 //        return 1;
+    }
+
+    /**
+     * `tb_factory_integration` ustunlari ro'yxati.
+     * Jarayon davomida bir marta o'qiladi — har so'rovga qo'shimcha SELECT bo'lmasin.
+     *
+     * @return string[]
+     */
+    private static function integrationColumns()
+    {
+        static $cols = null;
+
+        if ($cols === null) {
+            $cols = \Illuminate\Support\Facades\Schema::getColumnListing('tb_factory_integration');
+        }
+
+        return $cols;
     }
 
     /**
