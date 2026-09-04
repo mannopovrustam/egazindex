@@ -107,6 +107,7 @@ class calcHourRealize extends Command {
             }
         }
 
+        DB::table('i_hour_realize_detail')->where('real_date', $dt)->delete();
         $resultDetail = $this->reportByDateDetail($dt);
         if ($resultDetail) {
             foreach ($resultDetail as $a) DB::table('i_hour_realize_detail')->insert(collect($a)->toArray());

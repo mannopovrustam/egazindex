@@ -9,7 +9,7 @@ class Constant
 
     public static function gotPrice($dt = null)
     {
-        if (!$dt) return self::PRICE_KG_GAZ;
+        if (strtotime($dt) >= strtotime('2025-05-01')) return 2000;
         if (strtotime($dt) >= strtotime('2024-05-01')) return 1600;
         return 1120;
     }
