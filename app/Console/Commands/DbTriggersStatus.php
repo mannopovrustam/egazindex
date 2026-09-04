@@ -81,6 +81,8 @@ class DbTriggersStatus extends Command
         $rows      = [];
         $conflicts = 0;
         $gaps      = 0;
+        /** Ikki marta bajariladigan triggerlar: [nom, jadval] — DROP taklifi uchun */
+        $dupes     = [];
 
         foreach ($flags as $name => $phpOn) {
             $parts       = explode('.', $name, 2);
@@ -112,6 +114,7 @@ class DbTriggersStatus extends Command
             } elseif ($dbOn && $phpOn) {
                 $state = 'IKKI MARTA BAJARILADI';
                 $conflicts++;
+                $dupes[] = array($triggerName, $table);
                 $bad = true;
             } elseif (!$dbOn && !$phpOn) {
                 // Tanasi kommentga olingan trigger AYNAN shu yerga tushadi:
@@ -169,6 +172,7 @@ class DbTriggersStatus extends Command
         }
         if ($conflicts) {
             $this->error("XAVF: $conflicts ta trigger ham bazada, ham PHP da yoqiq — amal IKKI MARTA bajariladi.");
+            $this->suggestDrops($dupes, $conn);
         }
         if ($gaps) {
             $this->error("XAVF: $gaps ta trigger na bazada, na PHP da — mantiq YO`QOLGAN.");
@@ -237,6 +241,45 @@ class DbTriggersStatus extends Command
     {
         $p = explode('.', $full, 2);
         return isset($p[1]) ? $p[1] : $full;
+    }
+
+    /**
+     * Ikki marta bajariladigan triggerlar uchun TAYYOR DROP buyruqlarini beradi.
+     *
+     * `php_connections` = null modelida (config/db_triggers.php) trigger mantig'i
+     * HAMMA bazada PHP da bajariladi. Demak bazada qolgan DB trigger — ortiqcha
+     * nusxa: o'chirilishi kerak AYNAN U, PHP bayrog'i emas.
+     *
+     * ⚠ Bayroqni o'chirish YECHIM EMAS: bayroq hamma ulanishga tegishli, ya'ni
+     *   uni o'chirsangiz PostgreSQL nusxasida ham mantiq YO'QOLADI (u yerda DB
+     *   trigger yo'q).
+     *
+     * @param array       $dupes [nom, jadval] juftliklari
+     * @param string|null $conn
+     * @return void
+     */
+    private function suggestDrops(array $dupes, $conn)
+    {
+        if (!$dupes) return;
+
+        try {
+            $isPg = DB::connection($conn)->getDriverName() === 'pgsql';
+        } catch (\Exception $e) {
+            $isPg = false;
+        }
+
+        $this->line('');
+        $this->line('  Bazadagi ortiqcha nusxani o`chirish (' . TriggerFlags::resolveConnection($conn) . '):');
+        $this->line('');
+        foreach ($dupes as $d) {
+            list($name, $table) = $d;
+            $this->line($isPg
+                ? '    DROP TRIGGER IF EXISTS ' . $name . ' ON ' . $table . ';'
+                : '    DROP TRIGGER IF EXISTS `' . $name . '`;');
+        }
+        $this->line('');
+        $this->line('  ⚠ Avval `SHOW CREATE TRIGGER` bilan tanasini nusxalab oling — qaytarish kerak bo`lsa asqotadi.');
+        $this->line('  ⚠ PHP bayrog`ini O`CHIRMANG — u hamma ulanishga tegishli, PostgreSQL nusxasi ham to`xtab qoladi.');
     }
 
     /**

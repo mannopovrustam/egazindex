@@ -75,24 +75,33 @@ return [
     | PHP triggerlari QAYSI ULANISHLARDA ishlaydi
     |--------------------------------------------------------------------------
     |
-    | Bu ro'yxat dual write ning kaliti. Bayroq yoqilgan bo'lsa ham, PHP
-    | triggeri FAQAT shu ro'yxatdagi ulanishda bajariladi:
+    | Bayroq yoqilgan bo'lsa ham, PHP triggeri FAQAT shu ro'yxatdagi ulanishda
+    | bajariladi. `null` — ro'yxat tekshirilmaydi, ya'ni HAMMA ulanishda ishlaydi
+    | (TriggerFlags::phpSideOn(): `if ($list === null) return true;`).
     |
-    |   pgsql, pgsql1  — PostgreSQL nusxalari, ularda DB trigger YO'Q → PHP ishlaydi
-    |   mysql, mysql1  — ro'yxatda YO'Q, chunki bazalarning O'Z triggerlari bor
+    | ⚙ JORIY MODEL — `null`: trigger mantig'i HAMMA BAZADA PHP DA bajariladi
+    |   (mysql, mysql1, pgsql, pgsql1). Ya'ni yagona manba — shu loyihadagi
+    |   `App\Services\DbTriggers` klasslari, baza triggerlari emas.
     |
-    | Natija: har bir bazada trigger mantig'i AYNAN BIR MARTA bajariladi.
+    |   ⚠⚠ SHART: MySQL dagi DB triggerlari BO'LMASLIGI kerak (DROP qilingan
+    |      yoki tanasi bo'sh). Aks holda amal IKKI MARTA bajariladi — baza
+    |      triggeri bir marta, PHP triggeri yana bir marta. Bu jimgina sodir
+    |      bo'ladi: `i_real_orgs` ga +2×, `organizations.deposit` ga −2×.
     |
-    | `null` qilib qo'ysangiz — ulanish tekshirilmaydi, bayroq yoqilgan bo'lsa
-    | HAMMA ulanishda ishlaydi (dual write dan oldingi xatti-harakat).
+    |      Tekshirish: `php artisan triggers:status` — u endi trigger TANASINI
+    |      ham o'qiydi va ikkilanish bo'lsa kerakli DROP buyrug'ini yozib beradi.
     |
-    | ⚠ MySQL dagi DB triggerlarni DROP qilsangiz — 'mysql' ni shu ro'yxatga
-    |   QO'SHING, aks holda MySQL tomonda yon ta'sir bajarilmay qoladi.
+    | ESKI MODEL (tarix uchun) — ['pgsql', 'pgsql1']: MySQL da ishni BAZA
+    | triggerlari qilardi, PostgreSQL nusxalarida esa PHP. O'shanda MySQL dagi
+    | trigger tanasi kommentga olinsa mantiq na bazada, na PHP da qolar edi —
+    | `tb_factory_integration_bi` va `insert_i_real_details` aynan shunday
+    | "yo'qolgan" edi. Shu sababli model `null` ga o'tkazilgan.
+    |
+    | Eski modelga qaytarish kerak bo'lsa — quyidagini massivga almashtiring:
+    |     'php_connections' => ['pgsql', 'pgsql1'],
+    | (.env orqali berib bo'lmaydi: bu massiv, `env()` esa satr qaytaradi.)
     */
-/*    'php_connections' => [
-        'pgsql',
-        'pgsql1',
-    ],*/
+    'php_connections' => null,
 
     /*
     | Bajarilgan har bir PHP trigger amali logga yoziladi (DBTRG prefiksi).
