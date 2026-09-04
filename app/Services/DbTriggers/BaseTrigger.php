@@ -258,8 +258,15 @@ abstract class BaseTrigger
     {
         if (!TriggerFlags::isLogging()) return;
         $mode = TriggerFlags::isDryRun() ? 'DRY' : 'RUN';
-        $conn = self::connName();
-        \Log::info(self::LOG_TAG . " [$trigger] $mode " . ($conn ? "($conn) " : '') . $message);
+
+        // ⚠ Ulanish nomi HAR DOIM yozilsin. Ilgari `($conn ? ... : '')` edi va
+        //   standart yo'lda `connName()` NULL qaytargani uchun `mysql` yurishlari
+        //   YORLIQSIZ chiqardi — logga qarab "faqat pgsql da ishlagan" degan
+        //   noto'g'ri xulosa chiqarish mumkin edi. resolveConnection() null ni
+        //   haqiqiy nomga (config database.default) aylantiradi.
+        $conn = TriggerFlags::resolveConnection(self::connName());
+
+        \Log::info(self::LOG_TAG . " [$trigger] $mode ($conn) " . $message);
     }
 
     /** INSERT INTO $table ... */
@@ -363,7 +370,30 @@ abstract class BaseTrigger
         self::log($trigger, ($label ? $label . ' :: ' : '') . 'SQL ' . preg_replace('/\s+/', ' ', $sql)
             . ' [' . implode(', ', array_map(function ($v) { return $v === null ? 'NULL' : $v; }, $bind)) . ']');
         if (TriggerFlags::isDryRun()) return true;
-        return self::db()->statement($sql, $bind);
+
+        // ⚠ `statement()` FAQAT "xato otilmadi" ni bildiradi — nechta qator
+        //   o'zgarganini AYTMAYDI. Shuning uchun upsert jimgina 0 qatorga ta'sir
+        //   qilsa ham log "RUN" deb turardi va `i_real_orgs` kabi agregat
+        //   sababsiz o'smay qolardi: na xato, na iz. `affectingStatement()`
+        //   haqiqiy sonni qaytaradi.
+        $affected = self::db()->affectingStatement($sql, $bind);
+
+        // MySQL `ON DUPLICATE KEY UPDATE`: 1 = yangi qator qo'shildi,
+        // 2 = mavjudi yangilandi, 0 = qiymat umuman o'zgarmadi.
+        // PG `ON CONFLICT DO UPDATE`: 1 yoki 0.
+        // 0 — kutilmagan holat: bu triggerlar hech qachon "hech narsa qilma"
+        // demaydi, ya'ni 0 aggregat yo'qolganini bildiradi.
+        if ((int) $affected === 0) {
+            $conn = self::connName();
+            \Log::warning(self::LOG_TAG . " [$trigger] 0 QATOR o`zgardi"
+                . ($label ? ' (' . $label . ')' : '')
+                . ' — ulanish: ' . ($conn ? $conn : config('database.default'))
+                . '. Agregat o`smadi, sababini tekshiring.');
+        }
+
+        // Qaytish qiymati AVVALGIDEK: chaqiruvchilar 0 ni "xato" deb o'ylamasin
+        // (affectingStatement 0 qaytarishi xato EMAS).
+        return true;
     }
 
     /**
